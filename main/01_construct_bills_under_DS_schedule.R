@@ -1,5 +1,5 @@
 library(ggplot2); library(readxl); library(dplyr)
-source("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Code/UH/functions/dataframe_date_format.R")
+source('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Code/UH/UH MC pricing/functions/dataframe_date_format.R')
 setwd('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/')
 
 # load actual bills
@@ -154,3 +154,33 @@ billing_demand_avgs <- data.frame(component = c('Customer charge', 'Nonfuel ener
                                                   mean(billing_demand$gif_dollars, na.rm = TRUE)))
 
 saveRDS(billing_demand, file = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/UH/01_constructed_bills_under_DS_schedule.rds')
+
+
+
+
+##### plots - peak load last month and last year #####
+
+# find peak consumption last month and last year
+peakDayLastMonth <- dat_15min$date[[1431+which.max(matrixStats::rowMaxs(as.matrix(dat_15min[1432:nrow(dat_15min),-c(1,ncol(dat_15min))])))]]
+peakDayLastYear  <- dat_15min$date[[1095+which.max(matrixStats::rowMaxs(as.matrix(dat_15min[1096:nrow(dat_15min),-c(1,ncol(dat_15min))])))]]
+
+# extract load profiles
+loadProfile_peakDayLastMonth <- data.frame(time = colnames(dat_15min[2:(ncol(dat_15min)-1)]),
+                                           load = unlist(dat_15min[dat_15min$date == peakDayLastMonth, 2:(ncol(dat_15min)-1)]))
+loadProfile_peakDayLastYear  <- data.frame(time = colnames(dat_15min[2:(ncol(dat_15min)-1)]),
+                                           load = unlist(dat_15min[dat_15min$date == peakDayLastYear,  2:(ncol(dat_15min)-1)]))
+
+# combine peak data into one data.frame
+loadProfile_peaks <- data.frame(time = c(loadProfile_peakDayLastMonth$time, loadProfile_peakDayLastYear$time),
+                                load = c(loadProfile_peakDayLastMonth$load, loadProfile_peakDayLastYear$load),
+                                day  = c(rep('2021-06-03', times = nrow(loadProfile_peakDayLastMonth)),
+                                         rep('2020-10-02',  times = nrow(loadProfile_peakDayLastYear))))
+
+# plot
+ggplot(data = loadProfile_peaks) +
+  geom_line(aes(x = as.numeric(time), y = load, group = day, color = day), size = 1) +
+  labs(x = 'Time of day', y = 'Load (kW)', color = NULL) +
+  theme(text = element_text(size = 16),
+        legend.position = c(0.55, 0.2))
+ggsave('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/01_UH_example loads.png',
+       width = 8, height = 5)
