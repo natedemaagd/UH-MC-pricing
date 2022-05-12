@@ -1,3 +1,6 @@
+
+Sys.setenv(TZ='HST')
+
 library(ggplot2); library(readxl); library(dplyr)
 source('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Code/UH/UH MC pricing/functions/dataframe_date_format.R')
 setwd('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/')
@@ -129,9 +132,9 @@ ggplot(data = billing_demand[-c(1:11),]) + geom_line(aes(x = as.Date(paste0(year
 billing_demand$date <- as.Date(paste0(billing_demand$year_month, '-01'))
 billing_demand <- dplyr::left_join(billing_demand, dat_actual_bills[c('date', 'bill_dollars')], by = 'date')
 colnames(billing_demand)[colnames(billing_demand) == 'bill_dollars'] <- 'totalBill_dollars_actual'
-billing_demand$bill_constructed_minus_actual <- billing_demand$totalBill_dollars_constructed - billing_demand$bill_dollars
-ggplot(data = billing_demand[!is.na(billing_demand$bill_dollars),]) +
-  geom_line(aes(x = date, y = bill_constructed_minus_actual/bill_dollars)) +
+billing_demand$bill_constructed_minus_actual <- billing_demand$totalBill_dollars_constructed - billing_demand$totalBill_dollars_actual
+ggplot(data = billing_demand[!is.na(billing_demand$totalBill_dollars_actual),]) +
+  geom_line(aes(x = date, y = bill_constructed_minus_actual/totalBill_dollars_actual*100)) +
   labs(x = NULL, y = 'Calculated bill % error')
 
 

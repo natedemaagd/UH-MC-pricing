@@ -1,9 +1,12 @@
+
+Sys.setenv(TZ='HST')
+
 ######################################################################
 #### LINE 71 LIMITS DATA - IF WE GET NEW UPDATED DATA REMOVE THIS ####
 ######################################################################
 
 
-library(ggplot2)
+library(ggplot2); library(tidyverse)
 
 # load data
 load("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/00_smartMeterData.R")
@@ -111,9 +114,11 @@ colnames(dat_UHbill_monthly)[[1]] <- 'year_month'
 # plot monthly difference between marginal cost and previous-week-load-weighted marginal cost as 
 ggplot(data = dat_UHbill_monthly[-c(1, 44:48),]) +
   geom_line(aes(x = as.Date(paste0(year_month, '-15')), y = (dollars_mc_prevWeekLoadWtd - dollars_mc)/(mean(dollars_mc_prevWeekLoadWtd - dollars_mc)))) +
-  labs(x = NULL, y = '(Previous week load-weighted MC charge) - (MC charge) as proportion of mean difference') +
-  annotate(geom = 'text', x = as.Date('2020-06-15'), y = -30, label = paste0('Mean diff. = ', round((mean(dat_UHbill_monthly$dollars_mc_prevWeekLoadWtd - dat_UHbill_monthly$dollars_mc)),2)))
-ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_monthly_MC_difference_as_proportion_of_mean_difference.png')
+  labs(x = NULL, y = '(Previous week load-weighted MC charge) - (MC charge)\nas proportion of mean difference') +
+  annotate(geom = 'text', x = as.Date('2020-06-15'), y = -30, label = paste0('Mean diff. = ', round((mean(dat_UHbill_monthly$dollars_mc_prevWeekLoadWtd - dat_UHbill_monthly$dollars_mc)),2))) +
+  theme(text = element_text(size = 16))
+ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_monthly_MC_difference_as_proportion_of_mean_difference.png',
+       height = 6, width = 8)
 
 
 
@@ -190,18 +195,95 @@ rm(difference_SD_by_month, monthDates)
 
 
 
-##### simple diagrams #####
+##### plot - MC sample days #####
 
-# get sample week of MC
-dat_sample <- mcHeco[mcHeco$date_time >= as.POSIXct('2018-09-13 00:00:00 HST') & mcHeco$date_time <= as.POSIXct('2018-09-13 23:59:59 HST'),]
-dat_sample$hour <- c(1:23, 0)
+# keep only 2020 data
+mcHeco$date <- as.Date(mcHeco$date_time)
+mcHeco2020 <- mcHeco[mcHeco$date >= as.Date('2020-01-01'),]
+
+# find mean MC by hour
+mcHeco2020$hour <- lubridate::hour(mcHeco2020$date_time)
+mc_mean_byHour <- aggregate(mcHeco2020$mc, list(mcHeco2020$hour), mean, na.rm = TRUE)
+colnames(mc_mean_byHour) <- c('hour', 'mc')
+
+# separate MC data by day
+mcHeco2020_byDay <- split(mcHeco2020, mcHeco2020$date)
+
+# for each day, find difference between min and max MC, and SD
+mc_difference_byDay <- sapply(mcHeco2020_byDay, function(df) abs(max(df$mc) - min(df$mc)))
+mc_SD_byDay <- sapply(mcHeco2020_byDay, function(df) sd(df$mc) )
+
+# sample MC days - get "interesting" days for plotting; found by min/max/SD 
+days_to_sample <- c(mcHeco2020[which.max(mcHeco2020$mc), 'date'],
+                    names(mcHeco2020_byDay)[[which.min(mc_difference_byDay)]],
+                    names(mcHeco2020_byDay)[mc_SD_byDay == sort(mc_SD_byDay,decreasing = TRUE)[[40]]])
+
+# get all hours of MC data for these sample days
+dat_MCsample <- rbind(mcHeco2020[as.Date(mcHeco2020$date_time) == days_to_sample[[1]],],
+                      mcHeco2020[as.Date(mcHeco2020$date_time) == days_to_sample[[2]],],
+                      mcHeco2020[as.Date(mcHeco2020$date_time) == days_to_sample[[3]],])
+                      #mcHeco2020[as.Date(mcHeco2020$date_time) == days_to_sample[[4]],])
+
+# combine data, create hour variable, and create plot labels
+dat_MCsample <- plyr::rbind.fill(dat_MCsample, mc_mean_byHour)
+dat_MCsample$hourOfDay = 0:23
+dat_MCsample <- dat_MCsample[order(dat_MCsample$date),]
+dat_MCsample$label <- as.character(dat_MCsample$date)
+dat_MCsample$label[is.na(dat_MCsample$label)] <- '2020 mean'
 
 # plot sample MC
-ggplot(data = dat_sample) +
-  geom_line(aes(x = hour, y = mc), size = 0.8) +
-  labs(x = 'Hour of day', y = '$/MWh') +
-  theme(text=element_text(size = 16)) +
-  scale_y_continuous(limits = c(130, 145), breaks = seq(130, 145, 5), labels = seq(130, 145, 5))
-ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_hourly mc 2018-09-13.png',
-       height = 5, width = 8)
-        
+ggplot(data = dat_MCsample) +
+  geom_line(aes(x = hourOfDay, y = mc, color = label), size = 1.4) +
+  labs(x = 'Hour of day', y = '$/MWh', color = 'Date') +
+  theme(text=element_text(size = 16), legend.position = 'bottom') +
+  scale_x_continuous(limits = c(0,24), breaks = seq(0,24,2), labels = seq(0,24,2))
+  #geom_hline(yintercept = mean(mcHeco2020$mc), linetype = 'longdash', size = 1.5)
+ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_hourly mc.png',
+       height = 8, width = 6.5)
+
+
+
+
+##### plot - mean demand-weighted MC against previous week demand-weighted MC #####
+
+# create data.frame
+dat_wtdMC <- data.frame(wtdMC_currentWeek = dat_UHbill_monthly$dollars_mc_prevWeekLoadWtd[2:nrow(dat_UHbill_monthly)],
+                        wtdMC_prevWeek    = dat_UHbill_monthly$dollars_mc_prevWeekLoadWtd[1:(nrow(dat_UHbill_monthly)-1)])
+
+# plot
+ggplot(data = dat_wtdMC, aes(x = wtdMC_prevWeek, y = wtdMC_currentWeek)) +
+  geom_point()
+
+
+
+
+##### plot - mean demand-weighted MC against previous week demand-weighted MC #####
+
+# create data.frame of UH loads (vectorized)
+dat_UHdemand_vectorized <- data.frame(date_time = seq.POSIXt(min(dat_UHdemand$date), max(dat_UHdemand$date)+lubridate::days(1), by = '15 min'))
+dat_UHdemand_vectorized$kW <- c(unlist(dat_UHdemand[2:ncol(dat_UHdemand)]), NA)
+
+# merge MC to load, linearly interpolate NAs (hourly to 15-min)
+dat_UHdemand_vectorized <- dplyr::left_join(dat_UHdemand_vectorized, mcHeco, 'date_time')
+dat_UHdemand_vectorized$mc <- zoo::na.approx(dat_UHdemand_vectorized$mc, na.rm = FALSE)
+
+# determine week of each date_time
+dat_UHdemand_vectorized$year_week <- paste(lubridate::year(dat_UHdemand_vectorized$date_time), lubridate::isoweek(dat_UHdemand_vectorized$date_time), sep = '-')
+
+# load-weighted mean MC by week
+dat_UHdemand_vectorized <- dat_UHdemand_vectorized %>%
+  group_by(year_week) %>%
+  mutate(weekly_loadWeighted_mc = weighted.mean(mc, kW))
+
+# get unique year-weeks to plot, get lagged MC value
+dat_plot <- dat_UHdemand_vectorized[!duplicated(dat_UHdemand_vectorized$year_week), c('year_week', 'weekly_loadWeighted_mc')]
+dat_plot$prevWeek_loadWeighted_mc <- c(NA, dat_plot$weekly_loadWeighted_mc[-length(dat_plot$weekly_loadWeighted_mc)])
+
+
+# plot data
+ggplot(data = dat_plot, aes(x = prevWeek_loadWeighted_mc, y = weekly_loadWeighted_mc)) +
+  geom_point(alpha= 0.6, size = 2.3) +
+  labs(x = 'Previous week load-wtd mean MC ($/MWh)', y = 'Current week load-wtd mean MC ($/MWh)') +
+  theme(text = element_text(size = 20))
+ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_weekly load-wtd MC vs previous week load-wtd MC.png',
+       dpi = 300, height = 8, width = 9)
