@@ -287,3 +287,10 @@ ggplot(data = dat_plot, aes(x = prevWeek_loadWeighted_mc, y = weekly_loadWeighte
   theme(text = element_text(size = 20))
 ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_weekly load-wtd MC vs previous week load-wtd MC.png',
        dpi = 300, height = 8, width = 9)
+
+
+
+
+##### save data #####
+
+save(dat_UHbill_daily, dat_UHbill_monthly, file = "D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/UH/02_marginal_cost_pricing.Rdata")
