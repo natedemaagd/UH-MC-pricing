@@ -169,9 +169,9 @@ peakDayLastYear  <- dat_15min$date[[1095+which.max(matrixStats::rowMaxs(as.matri
 
 # extract load profiles
 loadProfile_peakDayLastMonth <- data.frame(time = colnames(dat_15min[2:(ncol(dat_15min)-1)]),
-                                           load = unlist(dat_15min[dat_15min$date == peakDayLastMonth, 2:(ncol(dat_15min)-1)]))
+                                           load = as.vector(t(dat_15min[dat_15min$date == peakDayLastMonth, 2:(ncol(dat_15min)-1)])))
 loadProfile_peakDayLastYear  <- data.frame(time = colnames(dat_15min[2:(ncol(dat_15min)-1)]),
-                                           load = unlist(dat_15min[dat_15min$date == peakDayLastYear,  2:(ncol(dat_15min)-1)]))
+                                           load = as.vector(t(dat_15min[dat_15min$date == peakDayLastYear,  2:(ncol(dat_15min)-1)])))
 
 # combine peak data into one data.frame
 loadProfile_peaks <- data.frame(time = c(loadProfile_peakDayLastMonth$time, loadProfile_peakDayLastYear$time),
