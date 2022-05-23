@@ -69,7 +69,7 @@ dat_UHdemand_hourlyAvg <- dat_UHdemand_hourlyAvg[with(dat_UHdemand_hourlyAvg, or
 
 
 
-##### create 15-min baseline loads by year - for peak load demand charge #####
+##### create 15-min baseline loads by year - for billing demand/demand charge #####
 
 # split datetime variable in to year, month, day, hour, min
 dat_UHdemand_15min <- dat_UHdemand_15min %>%
@@ -81,26 +81,41 @@ dat_UHdemand_15min <- dat_UHdemand_15min %>%
          .after = datetime)
 dat_UHdemand_15min$hourID <- NULL  # get rid of previous hour variable
 
-# get mean load by year-hour-minute
-dat_UHdemand_baseline_15min <- with(dat_UHdemand_15min, aggregate(load_kW_mean15min, list(year, hour, minute), mean))
-colnames(dat_UHdemand_baseline_15min) <- c('year', 'hour', 'minute', 'load_kW_mean15min')  # set column names
-dat_UHdemand_baseline_15min <- dat_UHdemand_baseline_15min[with(dat_UHdemand_baseline_15min, order(year, hour, minute)),]  # reorder rows
+# initialize data.frame to store peak loads for each month
+dat_UHdemand_peak15min <- data.frame(date = seq.Date(as.Date('2018-01-01'), as.Date('2020-12-31'), by = 'month'),
+                                     peakLoadPrevMonth_kW = NA,
+                                     peakLoadPrevYear_kW = NA)
 
-# (A) get max 15-min load in each year
-dat_UHdemand_peak15minLoad <- with(dat_UHdemand_baseline_15min,  aggregate(load_kW_mean15min, list(year), max))
-colnames(dat_UHdemand_peak15minLoad) <- c('year', 'peak15minLoad_kW_currentYear')
+# (A) for each month, get max load over previous month
+for(m in 1:nrow(dat_UHdemand_peak15min)){
+  dat_UHdemand_peak15min$peakLoadPrevMonth_kW[[m]] <-  max(dat_UHdemand_15min[with(dat_UHdemand_15min, month == month(dat_UHdemand_peak15min$date[[m]] - months(1)) &  # subtract one month from the current month and keep month of that date
+                                                                                                       year  == year(dat_UHdemand_peak15min$date[[m]]  - months(1))),  # subtract one month from the current month and keep year of that date
+                                                                              'load_kW_mean15min'])
+}
 
-# (B) get previous-year max load
-dat_UHdemand_peak15minLoad$peak15minLoad_kW_previousYear <- with(dat_UHdemand_peak15minLoad, c(NA, peak15minLoad_kW_currentYear[1:(nrow(dat_UHdemand_peak15minLoad)-1)]))
+# (B) for each month, get max load over previous year
+for(m in 1:nrow(dat_UHdemand_peak15min)){
+  dat_UHdemand_peak15min$peakLoadPrevYear_kW[[m]]  <-  max(dat_UHdemand_15min[dat_UHdemand_15min$datetime %in% seq.POSIXt(from = as.POSIXct(paste(year(dat_UHdemand_peak15min$date[[m]] - months(12)),  # sequence of days, starting with beginning of month 12 months ago (m-12)
+                                                                                                                                                  month(dat_UHdemand_peak15min$date[[m]] - months(12)),
+                                                                                                                                                  '1 00:00:00',
+                                                                                                                                                  sep = '-'),
+                                                                                                                                            tz = 'HST'),
+                                                                                                                          to   = as.POSIXct(paste0(year(dat_UHdemand_peak15min$date[[m]] - months(1)), '-',   # sequence of days, ending with end of month 1 month ago (m-1)
+                                                                                                                                                   month(dat_UHdemand_peak15min$date[[m]] - months(1)), '-',
+                                                                                                                                                   days_in_month(as.Date(paste(year(dat_UHdemand_peak15min$date[[m]] - months(1)),
+                                                                                                                                                                               month(dat_UHdemand_peak15min$date[[m]] - months(1)), '1',
+                                                                                                                                                                               sep = '-'))),
+                                                                                                                                                   ' 23:59:59'),
+                                                                                                                                            tz = 'HST'),
+                                                                                                                          by = '15 min'), 'load_kW_mean15min'])
+}
 
-# (C) get mean of (A) and (B)
-dat_UHdemand_peak15minLoad$peak15minLoad_kW_meanCurrentYearAndPreviousYear <- with(dat_UHdemand_peak15minLoad,
-                                                                                   rowMeans(cbind(peak15minLoad_kW_currentYear, peak15minLoad_kW_previousYear)))
+# (C): find mean of (A) and (B)
+dat_UHdemand_peak15min$billing_demand_kW <- rowMeans(dat_UHdemand_peak15min[c("peakLoadPrevMonth_kW", "peakLoadPrevYear_kW")])
 
-# billing demand used for demand charge for baseline is max of (A) and (C), but not less than 300 kW
-dat_UHdemand_peak15minLoad$billing_demand_kW <- apply(dat_UHdemand_peak15minLoad[,c('peak15minLoad_kW_currentYear', 'peak15minLoad_kW_meanCurrentYearAndPreviousYear')], 1, max)
-dat_UHdemand_peak15minLoad$billing_demand_kW <- with(dat_UHdemand_peak15minLoad,
-                                                     ifelse(!is.na(billing_demand_kW) & billing_demand_kW < 300, 300, billing_demand_kW))  # ensure billing demand is at least 300 kW
+# baseline billing demand will be mean of (C) by year
+dat_UHdemand_baseline_peakDemand <- with(dat_UHdemand_peak15min ,aggregate(billing_demand_kW, list(year(date)), mean))
+colnames(dat_UHdemand_baseline_peakDemand) <- c('year', 'billing_demand_kW')
 
 
 
@@ -120,7 +135,7 @@ dat_UHdemand_baseline_hourly <- left_join(dat_UHdemand_baseline_hourly, dat_UHde
 # remove leap days from baseline (???)
 dat_UHdemand_baseline_hourly <- dat_UHdemand_baseline_hourly[!(month(dat_UHdemand_baseline_hourly$date) == 2 & day(dat_UHdemand_baseline_hourly$date) == 28),]
 
-# baseline data: aggregate hourly to monthly (note bill will only be function of number of days in the month and the year's avg daily use)
+# baseline data: aggregate hourly to monthly (note: bill will only be function of number of days in the month and the year's avg daily use. This is averaged out below.)
 dat_UHdemand_baseline_monthly <- with(dat_UHdemand_baseline_hourly, aggregate(kWh, list(year, month), sum))
 colnames(dat_UHdemand_baseline_monthly) <- c('year', 'month', 'kWh')
 dat_UHdemand_baseline_monthly <- dat_UHdemand_baseline_monthly[with(dat_UHdemand_baseline_monthly, order(year, month)),]  # reorder rows accding to date
@@ -130,18 +145,34 @@ dat_UHdemand_baseline_monthly <- dat_UHdemand_baseline_monthly[with(dat_UHdemand
 
 ##### calculate charges for baseline years using DS tariff #####
 
-# load function that calculates total bill for each month in the chosen baseline year
-  # note the only variation in the bill from month to month within a baseline year is due to the number of days in the month
+# calculate mean monthly loads for each baseline year: don't want baseline load to depend on number of days in the month so take mean of the monthly values within the baseline years
+dat_UHdemand_baseline_monthly <- with(dat_UHdemand_baseline_monthly, aggregate(kWh, list(year), mean))
+colnames(dat_UHdemand_baseline_monthly) <- c('year', 'kWh')
+
+# load function that calculates total baseline bill for each month in the chosen baseline year
 source("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Code/UH/UH MC pricing/functions/03f_baseline_load_DSbill_calculator.R")
 
-# use sourced function to calculate DS bills for baselines
-dat_baselineMonthlyBill_dollars <- list(baseline2018 = ds_bill_calculator(baseline_year = 2018),
-                                        baseline2019 = ds_bill_calculator(baseline_year = 2019),
-                                        baseline2020 = ds_bill_calculator(baseline_year = 2020))
+# define baselines
+baseline_years  <- 2018:2020
+baseline_months <- 1:12
 
-# find mean of the baseline charges across all months in the year
-  # this ensures the monthly baseline charge doesn't depend on the number of days in the month, but still generates equivalent revenue
-dat_baselineMonthlyBill_dollars <- lapply(dat_baselineMonthlyBill_dollars, mean)
+# use sourced function to calculate monthly DS bills for baseline loads (fixed charge before load deviation adjustment)
+dat_baselineMonthlyBill_dollars <- matrix(data = NA, nrow = length(baseline_years), ncol = length(baseline_months))  # initiate matrix to store values
+rownames(dat_baselineMonthlyBill_dollars) <- baseline_years
+colnames(dat_baselineMonthlyBill_dollars) <- baseline_months
+
+for(y in 1:length(baseline_years)){
+  for(m in 1:length(baseline_months)){
+    
+    dat_baselineMonthlyBill_dollars[[y,m]] <- ds_bill_calculator(baseline_year  = baseline_years[[y]],
+                                                                 baseline_month = baseline_months[[m]])
+    
+  }
+}
+
+# convert matrix of baseline charges to a data.frame
+dat_baselineMonthlyBill_dollars <- as.data.frame(t(dat_baselineMonthlyBill_dollars))
+colnames(dat_baselineMonthlyBill_dollars) <- paste0('baseline', colnames(dat_baselineMonthlyBill_dollars))
 
 rm(ds_bill_calculator)
 
@@ -164,7 +195,7 @@ dat_UHdemand_hourlyAvg <- data.frame(hour         = 0:23,
 dat_UHdemand_hourly <- left_join(dat_UHdemand_hourly, dat_UHdemand_hourlyAvg, 'hour')
 rm(dat_UHdemand_hourlyAvg)
 
-# baseline years 2018, 2019, 2020
+# run deviation function for baseline years 2018, 2019, 2020
 dat_UHdemand_hourly <- devFromBaseline(baseline_year = 2018)
 dat_UHdemand_hourly <- devFromBaseline(baseline_year = 2019)
 dat_UHdemand_hourly <- devFromBaseline(baseline_year = 2020)
@@ -174,7 +205,7 @@ rm(devFromBaseline)
 
 
 
-##### merge with marginal cost bill data #####
+##### merge data with marginal cost bill data #####
 
 # load marginal cost pricing data - rename objects for clarity
 load("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/UH/02_marginal_cost_pricing.Rdata")
@@ -202,10 +233,11 @@ dat_UHdemand_daily <- dat_UHdemand_daily[complete.cases(dat_UHdemand_daily),]
 # aggregate charges/credits by year-month
 dat_UHdemand_monthly <- aggregate(dat_UHdemand_daily[c('kWh_deviationFrom2018',           'kWh_deviationFrom2019',           'kWh_deviationFrom2020',
                                                        'chargeDollars_deviationFrom2018', 'chargeDollars_deviationFrom2019', 'chargeDollars_deviationFrom2020')],
-                                     list(dat_UHdemand_daily$year_month), sum)
+                                  list(dat_UHdemand_daily$year_month), sum)
 colnames(dat_UHdemand_monthly)[colnames(dat_UHdemand_monthly) == 'Group.1'] <- c('year_month')
 
 # add GP tariff-based baseline fixed charge (calculated for each year)
+dat_UHdemand_monthly <- dat_UHdemand_monthly[year(as.Date(paste0(dat_UHdemand_monthly$year_month, '-01'))) != 2017,]  # remove 2017 data since we don't have a baseline (requires 2016 data)
 dat_UHdemand_monthly$chargeDollars_fixedCharge_baseline2018 <- dat_baselineMonthlyBill_dollars$baseline2018
 dat_UHdemand_monthly$chargeDollars_fixedCharge_baseline2019 <- dat_baselineMonthlyBill_dollars$baseline2019
 dat_UHdemand_monthly$chargeDollars_fixedCharge_baseline2020 <- dat_baselineMonthlyBill_dollars$baseline2020
@@ -260,7 +292,7 @@ plotdat_MC$fixedCharge <- rep(c('$500k', '$750k', '$1000k'), each = nrow(dat_UHd
 plotdat_MC$fixedCharge <- factor(plotdat_MC$fixedCharge, levels = c('$500k', '$750k', '$1000k'))
 
 # plot DS pricing
-ggplot(data = plotdat_DS, aes(x = date, y = value/1e6, color = baseYear)) +
+ggplot(data = plotdat_DS[plotdat_DS$baseYear != '2018',], aes(x = date, y = value/1e6, color = baseYear)) +
   geom_line(size = 1.2) +
   scale_color_manual(values = c('black', scales::hue_pal()(3)), name = 'Baseline year') +
   geom_line(data = plotdat_DS[plotdat_DS$baseYear == 'Actual bill',], aes(x = date, y = value/1e6), size = 2, color = 'black') +  # plot actual bills again so it's on top and made with thicker line

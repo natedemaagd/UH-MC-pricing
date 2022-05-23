@@ -20,6 +20,10 @@ dat_colnames <- gsub(':', '', dat_colnames)
 colnames(dat_15min) <- dat_colnames
 rm(dat_colnames, time_seq)
 
+# 1 cell in 15-min UH demand data is missing. interpolate with previous and subsequent load
+missing_val <- which(is.na(dat_15min), arr.ind=TRUE)
+dat_15min[missing_val[1,1], missing_val[1,2]] <- mean(c(11340.00, 11417.04))
+
 
 
 

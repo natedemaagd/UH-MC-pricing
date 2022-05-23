@@ -4,7 +4,7 @@
 # calculation of baseline bills uses latest recorded value for each charge (published by HECO monthly: https://www.hawaiianelectric.com/billing-and-payment/rates-and-regulations/energy-cost-filings)
 
 # function to calculate bill for all months in the baseline year
-ds_bill_calculator <- function(baseline_year){
+ds_bill_calculator <- function(baseline_year, baseline_month){
   
   # load all HECO DS schedule fixed and variable charge data
   dat_cc <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/Rate_Data/schedule_ds/customer_charge.xlsx")  # fixed customer charge
@@ -18,42 +18,41 @@ ds_bill_calculator <- function(baseline_year){
   dat_reicrp <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/Rate_Data/schedule_r/reicrp.xlsx")  # Renewable Energy Infrastructure Cost Recovery Provision ###### CAN'T FIND DS VALUES
   dat_gif <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/Rate_Data/schedule_ds/green_infrastructure_fee.xlsx")  # Green Infrastructure Fee Surcharge
   
-  # define total consumption (kWh) and peak load (kW)
+  # define total consumption (kWh), and peak load (kW)
   kWh_total   = dat_UHdemand_baseline_monthly[dat_UHdemand_baseline_monthly$year == baseline_year, 'kWh']
-  kW_peakLoad = dat_UHdemand_peak15minLoad[dat_UHdemand_peak15minLoad$year == baseline_year, 'billing_demand_kW']
+  kW_peakLoad = dat_UHdemand_baseline_peakDemand[dat_UHdemand_baseline_peakDemand$year == baseline_year, 'billing_demand_kW']
   
   # create vector of all charges
   charges_list_dollars <- list(
     
-    # divide by 100 when charged cents per kWh to get total dollars
-    # use mean historical prices when calculating each charge
+    ### divide by 100 when price given as cents per kWh
     
     # customer charge: fixed monthly
-    customer_charge = mean(dat_cc$dollars_per_month, na.rm = TRUE),
+    customer_charge = unlist(dat_cc[with(dat_cc, year == baseline_year & month == baseline_month), 'dollars_per_month']),
     
     # demand charge: per kW, based on billing demand (peak load as calculated in dat_UHdemand_peak15minLoad)
-    demand_charge = kW_peakLoad * mean(dat_dc$dollars_per_kW, na.rm = TRUE),
+    demand_charge = kW_peakLoad * unlist(dat_dc[with(dat_dc, year == baseline_year & month == baseline_month), 'dollars_per_kW']),
     
     # energy cost recovery: per kWh
-    ecrc =  kWh_total * mean(dat_ecrc$final_cents_per_kwh, na.rm = TRUE)/100,
+    ecrc =  kWh_total * unlist(dat_ecrc[with(dat_ecrc, year == baseline_year & month == baseline_month), 'final_cents_per_kwh'])/100,
     
     # purchase power adjustment clause: per kWh
-    ppac = kWh_total * mean(dat_ppac$cents_per_kwh, na.rm = TRUE)/100,
+    ppac = kWh_total * unlist(dat_ppac[with(dat_ppac, year == baseline_year & month == baseline_month), 'cents_per_kwh'])/100,
     
     # RBA rate adjustment: per kWh
-    rbap = kWh_total * mean(dat_rbap$cents_per_kwh, na.rm = TRUE)/100,
+    rbap = kWh_total * unlist(dat_rbap[with(dat_rbap, year == baseline_year & month == baseline_month), 'cents_per_kwh'])/100,
     
     # public benefits fund surcharge: per kWh
-    pbfs = kWh_total * mean(dat_pbfs$cents_per_kwh, na.rm = TRUE)/100,
+    pbfs = kWh_total * unlist(dat_pbfs[with(dat_pbfs, year == baseline_year & month == baseline_month), 'cents_per_kwh'])/100,
     
     # renewable energy infrastructure surcharge
-    reicrp = kWh_total * mean(dat_reicrp$cents_per_kwh, na.rm = TRUE)/100,
+    reicrp = kWh_total * unlist(dat_reicrp[with(dat_reicrp,year == baseline_year & month == baseline_month), 'cents_per_kwh'])/100,
     
     # green infrastructure fee: fixed monthly
-    gif = mean(dat_gif$dollars_per_month, na.rm = TRUE)
+    gif = dat_gif[with(dat_gif, year == baseline_year & month == baseline_month), 'dollars_per_month']
   )
   
   # sum across all charges to get total bill for each month in the baseline year
-  return(Reduce('+', charges_list_dollars))
+  return(unlist(Reduce('+', charges_list_dollars)))
   
 }
