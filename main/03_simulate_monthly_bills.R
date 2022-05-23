@@ -114,7 +114,7 @@ for(m in 1:nrow(dat_UHdemand_peak15min)){
 dat_UHdemand_peak15min$billing_demand_kW <- rowMeans(dat_UHdemand_peak15min[c("peakLoadPrevMonth_kW", "peakLoadPrevYear_kW")])
 
 # baseline billing demand will be mean of (C) by year
-dat_UHdemand_baseline_peakDemand <- with(dat_UHdemand_peak15min ,aggregate(billing_demand_kW, list(year(date)), mean))
+dat_UHdemand_baseline_peakDemand <- with(dat_UHdemand_peak15min, aggregate(billing_demand_kW, list(year(date)), mean))
 colnames(dat_UHdemand_baseline_peakDemand) <- c('year', 'billing_demand_kW')
 
 
@@ -135,7 +135,7 @@ dat_UHdemand_baseline_hourly <- left_join(dat_UHdemand_baseline_hourly, dat_UHde
 # remove leap days from baseline (???)
 dat_UHdemand_baseline_hourly <- dat_UHdemand_baseline_hourly[!(month(dat_UHdemand_baseline_hourly$date) == 2 & day(dat_UHdemand_baseline_hourly$date) == 28),]
 
-# baseline data: aggregate hourly to monthly (note: bill will only be function of number of days in the month and the year's avg daily use. This is averaged out below.)
+# baseline data: aggregate hourly to monthly (note: at this point the baseline charge is a function of the number of days in the month. This is averaged out below.)
 dat_UHdemand_baseline_monthly <- with(dat_UHdemand_baseline_hourly, aggregate(kWh, list(year, month), sum))
 colnames(dat_UHdemand_baseline_monthly) <- c('year', 'month', 'kWh')
 dat_UHdemand_baseline_monthly <- dat_UHdemand_baseline_monthly[with(dat_UHdemand_baseline_monthly, order(year, month)),]  # reorder rows accding to date
