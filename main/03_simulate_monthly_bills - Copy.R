@@ -249,7 +249,7 @@ colnames(dat_UHdemand_monthly)[colnames(dat_UHdemand_monthly) == 'dollars_mc_pre
 
 
 
-##### plot comparison of Georgia Power, true MC pricing, and actual bills #####
+##### plot time series data #####
 
 # remove months with missing baseline bill
 dat_UHdemand_monthly <- dat_UHdemand_monthly[!is.na(dat_UHdemand_monthly$totalBill_dollars_DSpricing),]
@@ -280,55 +280,36 @@ plotdat_MC$value <- plotdat_MC$value + rep(c(500000, 750000, 1000000), each = nr
 plotdat_MC$fixedCharge <- rep(c('$500k', '$750k', '$1000k'), each = nrow(dat_UHdemand_monthly))
 plotdat_MC$fixedCharge <- factor(plotdat_MC$fixedCharge, levels = c('$500k', '$750k', '$1000k'))
 
-# plot GP tariff bills and true MC-pricing bills against actual (constructed) bills
-  # all marginal costs are prior week load-weighted marginal costs
-ggplot() +
-  
-  # plot GP tariff bills
-  geom_line(data = plotdat_DS[plotdat_DS$baseYear != 'Actual bill',],
-            aes(x = date, y = value/1e6, color = baseYear), size = 1.2) +
-  scale_color_manual(values = scales::hue_pal()(5)[1:2], name = 'GP tariff pricing\nby indicated\nbaseline year', guide = guide_legend(order = 2)) +
-  
-  # plot true MC bills: prior-week load-weighted MC only
-  new_scale_color() +
-  geom_line(data = plotdat_MC[plotdat_MC$pricingStructure == 'Prior week\nload-weighted',],
-            aes(x = date, y = value/1e6, color = fixedCharge), size = 1.2, linetype = 'dotted') +
-  scale_color_manual(values = scales::hue_pal()(5)[3:5], name = 'True MC pricing\nby fixed charge', guide = guide_legend(order = 3)) +
-  
-  # plot actual bills
-  new_scale_color() +
-  geom_line(data = plotdat_DS[plotdat_DS$baseYear == 'Actual bill',],
-            aes(x = date, y = value/1e6, color = 'Actual bill'), size = 2) +
-  scale_color_manual(values = 'black', name = NULL, guide = guide_legend(order = 1)) +
-  
-  # general plot settings
+# plot DS pricing
+ggplot(data = plotdat_DS, aes(x = date, y = value/1e6, color = baseYear)) +
+  geom_line(size = 1.2) +
+  scale_color_manual(values = c('black', scales::hue_pal()(2)), name = 'GP tariff bill\nby indicated baseline year') +
+  geom_line(data = plotdat_DS[plotdat_DS$baseYear == 'Actual bill',], aes(x = date, y = value/1e6), size = 2, color = 'black') +  # plot actual bills again so it's on top and made with thicker line
   labs(x = NULL, y = 'Monthly bill (million $)') +
   theme(text = element_text(size = 20))
-ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/03_GeorgiaPowerTariffBills_MargCostPricingBills_ActualBills.png',
+ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/03_monthly DS pricing with charges and credits from deviations from base year.png',
        dpi = 300, height = 6, width = 11)
 
-
-
-
-##### plot comparison between bills using RTP MC and bills using prior week load-weighted MC #####
-
-# plot using existing plotdat_MC from previous figure
-ggplot(data = plotdat_MC[plotdat_MC$fixedCharge == '$1000k',]) +
+# plot MC pricing
+ggplot() +
   
-  # plot MC bills - use prior week load-weighted MC
-  geom_line(aes(x = date, y = value/1e6, color = pricingStructure), size = 1.2) +
-  labs(x = NULL, y = 'Monthly bill (million $)', color = 'Marginal cost\npricing structure') +
-  scale_color_discrete(guide = guide_legend(order = 2)) +
+  # plot MC pricing
+  geom_line(data = plotdat_MC, aes(x = date, y = value/1e6, color = fixedCharge, linetype = pricingStructure), size = 1.2) +
+  scale_color_discrete(name = 'Fixed charge', guide = guide_legend(order = 3)) +
+  scale_linetype_manual(name = 'Pricing structure', values = c('longdash', 'dotted'), guide = guide_legend(order = 2)) +
   
-  # plot actual bills
-  new_scale_color() +
-  geom_line(data = plotdat_DS[plotdat_DS$baseYear == 'Actual bill',],
-            aes(x = date, y = value/1e6, color = 'Actual bill'), size = 2) +
-  scale_color_manual(values = 'black', name = NULL, guide = guide_legend(order = 1)) +
+  # new scale
+  new_scale('linetype') +
   
-  # general plot settings
-  theme(text = element_text(size = 20), legend.key.size = unit(1.1, "cm"))  # font size, increase spacing of legend entries
-ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/03_compare RTP MC to prior-week load-weighted MC.png',
+  # plot DS pricing for comparison
+  geom_line(data = plotdat_DS[plotdat_DS$baseYear == 'Actual bill',], aes(x = date, y = value/1e6, linetype = 'Actual bill (DS)'),
+            size = 2, alpha = 0.5) +
+  scale_linetype_manual(name = NULL, values = 'solid', guide = guide_legend(order = 1)) +
+  
+  # plot settings
+  labs(x = NULL, y = 'Monthly bill (million $)') +
+  theme(text = element_text(size = 20))
+ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/03_monthly MC pricing compared to DS.png',
        dpi = 300, height = 6, width = 11)
 
 

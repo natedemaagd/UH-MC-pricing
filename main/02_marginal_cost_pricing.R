@@ -41,6 +41,7 @@ time_seq$weekID <- zoo::na.locf(time_seq$weekID)
 dat_UHbill_daily <- data.frame(date                       = dat_UHdemand$date,
                                weekID                     = rep(NA, times = nrow(dat_UHdemand)),
                                demand_kwh                 = rep(NA, times = nrow(dat_UHdemand)),
+                               mc_prevWeekLoadWtd         = rep(NA, times = nrow(dat_UHdemand)),
                                dollars_mc                 = rep(NA, times = nrow(dat_UHdemand)),
                                dollars_mc_prevWeekLoadWtd = rep(NA, times = nrow(dat_UHdemand)))
 for(i in 1:nrow(dat_UHbill_daily)){
@@ -102,6 +103,7 @@ for(i in 1:nrow(dat_UHbill_daily)){
     # calculate previous week load-weighted mean MC and corresponding daily bill
     mc_wtd_prevWeek <- with(timeseq_week_i_minus1, weighted.mean(mc, demand_kw))
     dat_UHbill_daily$dollars_mc_prevWeekLoadWtd[[i]] <- sum(mc_wtd_prevWeek * timeseq$demand_kw) / 1000 / 4
+    dat_UHbill_daily$mc_prevWeekLoadWtd[[i]] <- mc_wtd_prevWeek
   }
 }
 rm(dat_day_i, demand_kw, lambdas, timeseq, timeseq_week_i_minus1, time_seq, i, last_mc, mc_wtd_prevWeek, week_i_minus_1)
