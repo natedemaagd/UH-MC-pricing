@@ -142,6 +142,9 @@ dat_UHdemand_baseline_monthly <- dat_UHdemand_baseline_monthly[with(dat_UHdemand
 dat_UHdemand_baseline_monthly <- with(dat_UHdemand_baseline_monthly, aggregate(kWh, list(year), mean))
 colnames(dat_UHdemand_baseline_monthly) <- c('year', 'kWh')
 
+# save baseline hourly loads
+saveRDS(dat_UHdemand_baseline_hourly, file = "D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Intermediate/03 GP baseline hourly loads.rds")
+
 
 
 
@@ -172,6 +175,9 @@ dat_baselineMonthlyBill_dollars <- data.frame(year = rep(2018:2020, each =  12),
                                               baseline2020 = all_baselinesMonthsYears[all_baselinesMonthsYears$baseline_year == 2020, 'baselineBill_dollars'])
 
 rm(ds_bill_calculator, all_baselinesMonthsYears)
+
+# save baseline charges
+saveRDS(dat_baselineMonthlyBill_dollars, file = "D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Intermediate/03 GP baseline monthly charges.rds")
 
 
 
@@ -351,4 +357,17 @@ ggplot(data = plotdat_kWh) +
   theme(text = element_text(size = 20))
 ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/03_monthly MWh loads.png',
        dpi = 300, height = 6, width = 11)
+
+
+
+
+##### save data #####
+
+# save monthly bill data
+saveRDS(dat_UHdemand_monthly[c('date', 'totalBill_dollars_DSpricing', 'totalBill_dollars_GPbaseline2019',
+                               'totalBill_dollars_GPbaseline2020', 'totalBill_dollars_MargCostRTP', 'totalBill_dollars_MargCostPrevWeekLoadWtd')],
+        file = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Intermediate/03 all monthly bills.rds')
+
+# save formatted marginal cost data
+saveRDS(mcHeco, file = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Intermediate/03 marginal cost data.rds')
 
