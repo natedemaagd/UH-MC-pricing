@@ -58,11 +58,11 @@ GP_bill_calculator <- function(){
   }
   
   # merge MC to hourly data - use previous week load-weighted MC
-  mc_hourly <- with(dat_MC, aggregate(mc_prevWeekLoadWtd,
-                                      list(year(date_time), month(date_time),
-                                           day(date_time), hour(date_time)),
+  mc_hourly <- with(dat_MC, aggregate(mcPrevWkLoadWtd_dollarsPerMWh,
+                                      list(year(datetime), month(datetime),
+                                           day(datetime), hour(datetime)),
                                       mean))
-  colnames(mc_hourly) <- c('year', 'month', 'day', 'hour', 'mc_prevWeekLoadWtd')
+  colnames(mc_hourly) <- c('year', 'month', 'day', 'hour', 'mcPrevWkLoadWtd_dollarsPerMWh')
   dat_consumptionHourly <- left_join(dat_consumptionHourly, mc_hourly,
                                      by = c('year', 'month', 'day', 'hour'))
   
@@ -71,7 +71,7 @@ GP_bill_calculator <- function(){
     for(y in 2018:2020){
       dat_consumptionHourly[,paste0('deviationChargeDollars_', scenarios[[s]], '_baseline', y)] <-
         dat_consumptionHourly[,paste0('kWh_deviation_', scenarios[[s]], '_baseline', y)] *
-        dat_consumptionHourly$mc_prevWeekLoadWtd/1000
+        dat_consumptionHourly$mcPrevWkLoadWtd_dollarsPerMWh/1000
     }
   }
   

@@ -108,6 +108,8 @@ plotdat <- with(plotdat, data.frame(value = c(totalBillDollars_DSpricing_pv1MW, 
                                     date = plotdat$date))
 plotdat <- plotdat[plotdat$date <= as.Date('2020-12-01'),]
 
+plotdat <- plotdat[plotdat$pricingStructure != 'GP baseline 2019',]  # plot only GP 2020 baseline
+
 # plot
 ggplot() +
   geom_line(data = plotdat,

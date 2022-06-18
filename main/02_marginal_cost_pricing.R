@@ -233,15 +233,22 @@ dat_MCsample <- dat_MCsample[order(dat_MCsample$date),]
 dat_MCsample$label <- as.character(dat_MCsample$date)
 dat_MCsample$label[is.na(dat_MCsample$label)] <- '2020 mean'
 
+# adjust labels so it's clear what they represent (high, low, variable MC)
+dat_MCsample$label <- with(dat_MCsample, ifelse(label == '2020-04-01', '2020-04-01 (Day with high MC variablility)',
+                                         ifelse(label == '2020-08-20', '2020-08-20 (Day with low MC)',
+                                         ifelse(label == '2020-12-30', '2020-12-30 (Day with high MC)',
+                                                label))))
+
 # plot sample MC
 ggplot(data = dat_MCsample) +
-  geom_line(aes(x = hourOfDay, y = mc, color = label), size = 1.4) +
-  labs(x = 'Hour of day', y = '$/MWh', color = 'Date') +
+  geom_line(aes(x = hourOfDay, y = mc/1000, color = label), size = 1.4) +
+  labs(x = 'Hour of day', y = '$/kWh', color = 'Date') +
   theme(text=element_text(size = 16), legend.position = 'bottom') +
-  scale_x_continuous(limits = c(0,24), breaks = seq(0,24,2), labels = seq(0,24,2))
+  scale_x_continuous(limits = c(0,24), breaks = seq(0,24,2), labels = seq(0,24,2)) +
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))
   #geom_hline(yintercept = mean(mcHeco2020$mc), linetype = 'longdash', size = 1.5)
 ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_hourly mc.png',
-       height = 8, width = 6.5)
+       height = 6, width = 8)
 
 
 
@@ -283,12 +290,12 @@ dat_plot$prevWeek_loadWeighted_mc <- c(NA, dat_plot$weekly_loadWeighted_mc[-leng
 
 
 # plot data
-ggplot(data = dat_plot, aes(x = prevWeek_loadWeighted_mc, y = weekly_loadWeighted_mc)) +
+ggplot(data = dat_plot, aes(x = prevWeek_loadWeighted_mc/1000, y = weekly_loadWeighted_mc/1000)) +
   geom_point(alpha= 0.6, size = 2.3) +
-  labs(x = 'Previous week load-wtd mean MC ($/MWh)', y = 'Current week load-wtd mean MC ($/MWh)') +
+  labs(x = 'Previous week load-wtd mean MC ($/kWh)', y = 'Current week load-wtd mean MC ($/kWh)') +
   theme(text = element_text(size = 20))
 ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_weekly load-wtd MC vs previous week load-wtd MC.png',
-       dpi = 300, height = 8, width = 9)
+       dpi = 300, height = 8, width = 9.1)
 
 
 

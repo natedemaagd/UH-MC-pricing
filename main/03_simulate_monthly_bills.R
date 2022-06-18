@@ -333,6 +333,8 @@ ggplot(data = plotdat_MC[plotdat_MC$fixedCharge == '$1000k',]) +
   scale_color_manual(values = 'black', name = NULL, guide = guide_legend(order = 1)) +
   
   # general plot settings
+  scale_y_continuous(limits = c(1, 2.5),
+                     breaks = seq(1, 2.5, .5), labels = seq(1, 2.5, .5)) +  # adjust scales to match MC and GP figure
   theme(text = element_text(size = 20), legend.key.size = unit(1.1, "cm"))  # font size, increase spacing of legend entries
 ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/03_compare RTP MC to prior-week load-weighted MC.png',
        dpi = 300, height = 6, width = 11)
