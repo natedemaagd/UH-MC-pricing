@@ -57,8 +57,10 @@ dat_PV$siteTime <- NULL
 
 # clean PV production data
 dat_PV[dat_PV < 0 & !is.na(dat_PV)] <- 0  # production can't be negative
-dat_PV$hour <- hour(dat_PV$datetime)  # create hour variable
-#dat_PV$elkorProduction_kWh[dat_PV$hour %in% c(0:6, 20:23) & !is.na(dat_PV$elkorProduction_kWh)] <- 0  # production can't be positive when sun isn't out
+dat_PV$datetime <- dat_PV$datetime - 105*60  # subtract 105 minutes from Also Energy datetime to match with (correct) Sunny Portal data
+dat_PV$time <- substr(dat_PV$datetime, 12, 16)  # create hour-minute variable
+  dat_PV$time <- as.numeric(gsub(':', '', dat_PV$time))
+dat_PV$elkorProduction_kWh[dat_PV$time %in% c(0:600, 2030:2259) & !is.na(dat_PV$elkorProduction_kWh)] <- 0  # production can't be positive when sun isn't out
 dat_PV$hour <- NULL
 dat_PV[is.na(dat_PV$elkorProduction_kWh) & dat_PV$datetime >= as.POSIXct('2019-07-30 17:15:00'), 'elkorProduction_kWh'] <-
   dat_PV[is.na(dat_PV$elkorProduction_kWh) & dat_PV$datetime >= as.POSIXct('2019-07-30 17:15:00'), 'sitePerformanceEstimate_kWh']  # replace NA values with estimated performance data (missing days), but only after data gathering started
@@ -172,8 +174,8 @@ plotdat <- with(dat_UHdemand_hourlyAvg[dat_UHdemand_hourlyAvg$year == 2020,],
                            hour = 0:23))
 plotdat$panel <- factor(plotdat$panel, levels = c('Mean UH load', 'Mean PV production'))
 
-# solar production, as-is, is just the difference b/w load with 1 MW system and load with 5 MW system. I.e., it's the production from
-# 4 MW of PV. Multiply these values by 1.25 to get total production of 5 MW system.
+# solar production in this new dataset, as-is, is just the difference b/w load with 1 MW system and load with 5 MW system. I.e., it's the production from
+# 4 additional MW of PV. Multiply these values by 1.25 to get production of total 5 MW system.
 # For 1 MW system, divide the new 5 MW values by 5
 plotdat[plotdat$var == 'PV production, simulated 5 MW system', 'value'] <- plotdat[plotdat$var == 'PV production, simulated 5 MW system', 'value'] * 1.25
 plotdat[plotdat$var == 'PV production, 1 MW system (current)', 'value'] <- plotdat[plotdat$var == 'PV production, simulated 5 MW system', 'value'] / 5
