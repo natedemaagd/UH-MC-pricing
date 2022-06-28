@@ -196,6 +196,10 @@ ggplot(data = plotdat, aes(x = hour, y = value,
 
 ggsave(filename = "D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/04_UH average hourly consumption 5 MW PV example  - 2020 data.png",
        dpi = 300, height = 6, width = 8)
+
+# calculate difference in monthly demand charge and 30-day energy charge
+diff(aggregate(plotdat$value, list(plotdat$var), max)[,2][c(2,1)]) * 23         # demand charge savings at $23/kW
+diff(aggregate(plotdat$value, list(plotdat$var), sum)[,2][c(2,1)]) * 0.12 * 30  # energy charge savings at $0.12/kWh
   
 
 

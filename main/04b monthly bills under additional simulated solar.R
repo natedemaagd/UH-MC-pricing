@@ -63,6 +63,10 @@ source("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Code/UH/UH MC pricing/f
 dat_consumptionMonthly <- GP_bill_calculator()
 rm(GP_bill_calculator)
 
+# save data
+saveRDS(dat_consumptionMonthly,
+        file = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Intermediate/04b monthly bills under various PV scenarios - no battery.rds')
+
 
 
 
