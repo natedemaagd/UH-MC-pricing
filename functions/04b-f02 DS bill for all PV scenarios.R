@@ -26,7 +26,7 @@ DS_bill_calculator <- function(){
   colnames(dat_consumptionMonthly)[colnames(dat_consumptionMonthly) == 'yearmonth'] <- 'year_month'
   
   # get all PV scenarios
-  scenarios <- colnames(dat_consumptionMonthly)[grep('billingDemand_kW_', colnames(dat_consumptionMonthly))]
+  scenarios <- colnames(dat_consumptionMonthly)[grep('consumption_kWh_', colnames(dat_consumptionMonthly))]
   scenarios <- sapply(strsplit(scenarios, '_'), function(x) x[[3]])
   
   # calculate charges

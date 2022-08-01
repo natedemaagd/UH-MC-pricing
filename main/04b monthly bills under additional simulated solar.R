@@ -16,16 +16,18 @@ dat_consumption15min <- dat_consumption15min %>%
          .after = datetime) # create year-month variable for grouping
 
 dat_consumptionMonthly <- with(dat_consumption15min,
-                               aggregate(list(consumption_kWh_pv1MW, consumption_kWh_pv2MW, consumption_kWh_pv5MW),
+                               aggregate(list(consumption_kWh_pv1MW, consumption_kWh_pv2MW,
+                                              consumption_kWh_pv5MW, consumption_kWh_pv17MW),
                                          list(yearmonth), sum))
-colnames(dat_consumptionMonthly) <- c('yearmonth', 'consumption_kWh_pv1MW', 'consumption_kWh_pv2MW', 'consumption_kWh_pv5MW')
+colnames(dat_consumptionMonthly) <- c('yearmonth', 'consumption_kWh_pv1MW', 'consumption_kWh_pv2MW',
+                                      'consumption_kWh_pv5MW', 'consumption_kWh_pv17MW')
 dat_consumptionMonthly <- dat_consumptionMonthly %>%
   mutate(date = as.Date(paste0(yearmonth, '-01')),
          .before = yearmonth)  # date column for ordering rows
 dat_consumptionMonthly <- dat_consumptionMonthly[order(dat_consumptionMonthly$date),]
 
 # define PV scenarios
-scenarios <- c('pv1MW', 'pv2MW', 'pv5MW')
+scenarios <- c('pv1MW', 'pv2MW', 'pv5MW', 'pv17MW')
 
 
 
@@ -74,12 +76,12 @@ saveRDS(dat_consumptionMonthly,
 
 # melt data
 plotdat <- dat_consumptionMonthly[!is.na(dat_consumptionMonthly$totalBillDollars_DSpricing_pv1MW),]  # keep only range with original DS bills
-plotdat <- with(plotdat, data.frame(value = c(totalBillDollars_DSpricing_pv1MW, totalBillDollars_DSpricing_pv2MW, totalBillDollars_DSpricing_pv5MW,
-                                              totalBillDollars_MCpricing_pv1MW, totalBillDollars_MCpricing_pv2MW, totalBillDollars_MCpricing_pv5MW)/1e6,
-                                    scenario = rep(c('1 MW', '2 MW', '5 MW'), each = nrow(plotdat)),
+plotdat <- with(plotdat, data.frame(value = c(totalBillDollars_DSpricing_pv1MW, totalBillDollars_DSpricing_pv2MW, totalBillDollars_DSpricing_pv5MW, totalBillDollars_DSpricing_pv17MW,
+                                              totalBillDollars_MCpricing_pv1MW, totalBillDollars_MCpricing_pv2MW, totalBillDollars_MCpricing_pv5MW, totalBillDollars_MCpricing_pv17MW)/1e6,
+                                    scenario = rep(c('1 MW', '2 MW', '5 MW', '17 MW'), each = nrow(plotdat)),
                                     pricingStructure = rep(c('DS', 'Prior-week MC'), each = nrow(plotdat)*length(scenarios)),
                                     date = plotdat$date))
-plotdat <- plotdat[plotdat$date <= as.Date('2020-12-01'),]
+plotdat$scenario <- factor(plotdat$scenario, levels = c('1 MW', '2 MW', '5 MW', '17 MW'))
 plotdat <- plotdat[!(plotdat$pricingStructure == 'Prior-week MC' & plotdat$date == max(plotdat$date)),]
 
 # plot
@@ -88,14 +90,14 @@ ggplot() +
             aes(x = date, y = value, color = pricingStructure, linetype = scenario),
             size = 1.3, alpha = 0.7) +
   labs(color = 'Pricing\nstructure',  linetype = 'PV capacity', x = NULL, y = 'Monthly bill (million $)') +
-  scale_linetype_manual(values = c('solid', 'dashed', 'dotted')) +
+  scale_linetype_manual(values = c('solid', 'longdash', 'dashed', 'dotted')) +
   geom_line(data = plotdat[plotdat$scenario == '1 MW' & plotdat$pricingStructure == 'DS',],
             aes(x = date, y = value), color = scales::hue_pal()(3)[[1]], alpha = 0.7, size = 2) +
   scale_x_date(limits = c(min(plotdat$date), '2021-01-01')) +
   theme(text = element_text(size = 15), legend.key.size=unit(2,"lines"))
 
 ggsave("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/04b-fig01 DS and prior-week MC bills under various PV scenarios.png",
-       dpi = 300, height = 4, width = 8)
+       dpi = 300, height = 6, width = 11)
 
 
 
@@ -104,15 +106,15 @@ ggsave("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figu
 
 # melt data
 plotdat <- dat_consumptionMonthly[!is.na(dat_consumptionMonthly$totalBillDollars_DSpricing_pv1MW),]  # keep only range with original DS bills
-plotdat <- with(plotdat, data.frame(value = c(totalBillDollars_DSpricing_pv1MW, totalBillDollars_DSpricing_pv2MW, totalBillDollars_DSpricing_pv5MW,
-                                              totalBillDollars_GPpricingBaseline2019_pv1MW, totalBillDollars_GPpricingBaseline2019_pv2MW, totalBillDollars_GPpricingBaseline2019_pv5MW,
-                                              totalBillDollars_GPpricingBaseline2020_pv1MW, totalBillDollars_GPpricingBaseline2020_pv2MW, totalBillDollars_GPpricingBaseline2020_pv5MW)/1e6,
-                                    scenario = rep(c('1 MW', '2 MW', '5 MW'), each = nrow(plotdat)),
+plotdat <- with(plotdat, data.frame(value = c(totalBillDollars_DSpricing_pv1MW, totalBillDollars_DSpricing_pv2MW, totalBillDollars_DSpricing_pv5MW,  totalBillDollars_DSpricing_pv17MW,
+                                              totalBillDollars_GPpricingBaseline2019_pv1MW, totalBillDollars_GPpricingBaseline2019_pv2MW, totalBillDollars_GPpricingBaseline2019_pv5MW, totalBillDollars_GPpricingBaseline2019_pv17MW,
+                                              totalBillDollars_GPpricingBaseline2020_pv1MW, totalBillDollars_GPpricingBaseline2020_pv2MW, totalBillDollars_GPpricingBaseline2020_pv5MW, totalBillDollars_GPpricingBaseline2020_pv17MW)/1e6,
+                                    scenario = rep(c('1 MW', '2 MW', '5 MW', '17 MW'), each = nrow(plotdat)),
                                     pricingStructure = rep(c('DS', 'GP baseline 2019', 'GP baseline 2020'), each = nrow(plotdat)*length(scenarios)),
                                     date = plotdat$date))
-plotdat <- plotdat[plotdat$date <= as.Date('2020-12-01'),]
+plotdat$scenario <- factor(plotdat$scenario, levels = c('1 MW', '2 MW', '5 MW', '17 MW'))
 
-plotdat <- plotdat[plotdat$pricingStructure != 'GP baseline 2019',]  # plot only GP 2020 baseline
+#plotdat <- plotdat[plotdat$pricingStructure != 'GP baseline 2019',]  # plot only GP 2020 baseline
 
 # plot
 ggplot() +
@@ -120,10 +122,10 @@ ggplot() +
             aes(x = date, y = value, color = pricingStructure, linetype = scenario),
             size = 1.3, alpha = 0.7) +
   labs(color = 'Pricing\nstructure',  linetype = 'PV capacity', x = NULL, y = 'Monthly bill (million $)') +
-  scale_linetype_manual(values = c('solid', 'dashed', 'dotted')) +
+  scale_linetype_manual(values = c('solid', 'longdash', 'dashed', 'dotted')) +
   geom_line(data = plotdat[plotdat$scenario == '1 MW' & plotdat$pricingStructure == 'DS',],
             aes(x = date, y = value), color = scales::hue_pal()(3)[[1]], alpha = 0.7, size = 2) +
   theme(text = element_text(size = 15), legend.key.size=unit(2,"lines"))
 
 ggsave("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/04b-fig02 DS and GP bills under various PV scenarios.png",
-       dpi = 300, height = 4, width = 8)
+       dpi = 300, height = 6, width = 10)

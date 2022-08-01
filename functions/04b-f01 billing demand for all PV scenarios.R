@@ -15,9 +15,9 @@ billing_demand_kW <- function(){
   
   # get max load for the month, format resulting data
   kW_maxLoad_lastMonth <- with(dat_consumption15min,
-                               aggregate(list(mean15minLoad_kW_pv1MW, mean15minLoad_kW_pv2MW, mean15minLoad_kW_pv5MW),
+                               aggregate(list(mean15minLoad_kW_pv1MW, mean15minLoad_kW_pv2MW, mean15minLoad_kW_pv5MW, mean15minLoad_kW_pv17MW),
                                          list(yearmonth), max, na.rm =  TRUE))  # find max load over each month
-  colnames(kW_maxLoad_lastMonth) <- c('yearmonth', 'max15minLoad_prev1mo_pv1MW', 'max15minLoad_prev1mo_pv2MW', 'max15minLoad_prev1mo_pv5MW')  # rename columns in new data.frame
+  colnames(kW_maxLoad_lastMonth) <- c('yearmonth', 'max15minLoad_prev1mo_pv1MW', 'max15minLoad_prev1mo_pv2MW', 'max15minLoad_prev1mo_pv5MW', 'max15minLoad_prev1mo_pv17MW')  # rename columns in new data.frame
   kW_maxLoad_lastMonth <- kW_maxLoad_lastMonth[with(kW_maxLoad_lastMonth,
                                                     order(as.Date(paste0(yearmonth, '-1')))),]  # order rows in data by date
   kW_maxLoad_lastMonth <- kW_maxLoad_lastMonth %>% 
@@ -36,7 +36,7 @@ billing_demand_kW <- function(){
   kW_maxLoad_last11mo <- lapply(kW_maxLoad_last11mo, unlist)
   kW_maxLoad_last11mo <- as.data.frame(cbind(kW_maxLoad_lastMonth[12:nrow(kW_maxLoad_lastMonth), 'yearmonth'],
                                              do.call('cbind', kW_maxLoad_last11mo)))
-  colnames(kW_maxLoad_last11mo) <- c('yearmonth', 'max15minLoad_prev11mo_pv1MW', 'max15minLoad_prev11mo_pv2MW', 'max15minLoad_prev11mo_pv5MW')
+  colnames(kW_maxLoad_last11mo) <- c('yearmonth', 'max15minLoad_prev11mo_pv1MW', 'max15minLoad_prev11mo_pv2MW', 'max15minLoad_prev11mo_pv5MW', 'max15minLoad_prev11mo_pv17MW')
   for(i in 2:ncol(kW_maxLoad_last11mo)){ kW_maxLoad_last11mo[,i] <- as.numeric(kW_maxLoad_last11mo[,i]) }
   kW_maxLoad_last11mo <- kW_maxLoad_last11mo %>% 
     mutate_if(is.numeric, ~ replace_na(., 0) %>% 
