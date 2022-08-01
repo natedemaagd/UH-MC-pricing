@@ -31,12 +31,15 @@ ggplot(plotdat) +
   geom_line(aes(x = datetime, y = kWh_sunnyPortal), size = 1.3)
 rm(plotdat)
 
+# add 15 minutes to data
+dat_sunnyPortal$datetime <- dat_sunnyPortal$datetime - 15*60
+
 
 
 ##### Also Solar data #####
 
 # load and format
-dat_alsoEnergy <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/Solar production/historicalProduction15min.csv")[1:2]
+dat_alsoEnergy <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/Solar production/AlsoEnergy PowerTrack 15 min production data through 2022-07-31.csv")[1:2]
 colnames(dat_alsoEnergy) <- c('datetime', 'kWh_alsoEnergy')
 dat_alsoEnergy$datetime <- as.POSIXct(dat_alsoEnergy$datetime, format = "%m-%d-%Y %H:%M:%S", tz = 'HST')
 
