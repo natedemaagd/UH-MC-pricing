@@ -2,6 +2,7 @@
 # script for any miscellaneous figures
 
 library(ggplot2); library(lubridate); library(zoo); library(patchwork)
+library(dplyr)
 Sys.setenv(tz = 'HST')
 
 # load MC data
@@ -79,41 +80,64 @@ ggsave(ggrob, filename = "D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Table
 
 ##### plot MC history against average cost per kWh history #####
 
-# load bill data
+# load recent bill data
 dat_UHbill <- readRDS('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Intermediate/04b monthly bills under various PV scenarios - no battery.rds')
+
+# load and format older bill data
+dat_UHbill2 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/June '12 - Jan '17 Monthly Billing dataframe friendly.csv")
+colnames(dat_UHbill2)[colnames(dat_UHbill2) == 'Cal..year...month'] <- 'date'
+colnames(dat_UHbill2)[colnames(dat_UHbill2) == 'Billed.Usage..KWH.'] <- 'consumption_kWh_pv1MW'
+colnames(dat_UHbill2)[colnames(dat_UHbill2) == 'Line.Item.Amount'] <- 'totalBillDollars_DSpricing_pv1MW'
+dat_UHbill2 <- dat_UHbill2[c('date', 'consumption_kWh_pv1MW', 'totalBillDollars_DSpricing_pv1MW')]
+dat_UHbill2$date <- gsub('/', '-', dat_UHbill2$date)
+dat_UHbill2$date <- as.Date(paste0('01-', dat_UHbill2$date), format = '%d-%m-%Y')
+dat_UHbill2$consumption_kWh_pv1MW <-
+  as.numeric(gsub(',', '', dat_UHbill2$consumption_kWh_pv1MW))
+
+# merge billing data
+dat_UHbill <- dat_UHbill[colnames(dat_UHbill) %in% colnames(dat_UHbill2)]
+dat_UHbill <- rbind(dat_UHbill, dat_UHbill2)
+rm(dat_UHbill2)
 
 # aggregate MC by year-month
 dat_MC$year_month <- substr(dat_MC$date, 1, 7)
 dat_MCmonthlyMean <- aggregate(dat_MC$mc_dollarsPerMWh, list(dat_MC$year_month),
                                mean, na.rm = TRUE)
-colnames(dat_MCmonthlyMean) <- c('year_month', 'meanMC')
+colnames(dat_MCmonthlyMean) <- c('date', 'meanMC')
+dat_MCmonthlyMean$date <- as.Date(paste0(dat_MCmonthlyMean$date, '-01'))
 
 # aggregate $/kWh for UH bill
 dat_UHbill$dollarsPerkWh <-
   dat_UHbill$totalBillDollars_DSpricing_pv1MW / dat_UHbill$consumption_kWh_pv1MW
 dat_UHmonthlyMeanPrice <- aggregate(dat_UHbill$dollarsPerkWh,
-                                    list(dat_UHbill$year_month),
+                                    list(dat_UHbill$date),
                                     mean, na.rm = TRUE)
-colnames(dat_UHmonthlyMeanPrice) <- c('year_month', 'dollarsPerkWh')
+colnames(dat_UHmonthlyMeanPrice) <- c('date', 'dollarsPerkWh')
 
 # merge mean data
-dat <- left_join(dat_UHmonthlyMeanPrice, dat_MCmonthlyMean, 'year_month')
+dat <- left_join(dat_MCmonthlyMean, dat_UHmonthlyMeanPrice, 'date')
 
 # format variables
-dat$year_month <- as.Date(paste0(dat$year_month, '-01'))
 dat$meanMC <- dat$meanMC / 1000
-dat <- dat[complete.cases(dat),]
 
 # plot
-plotdat <- data.frame(date = dat$year_month,
-                      value = c(dat$dollarsPerkWh, dat$meanMC,
-                                dat$dollarsPerkWh - dat$meanMC),
-                      facet = c(rep('Average Prices', times = nrow(dat)*2),
-                                rep('Difference', times =nrow(dat))),
-                      label = rep(c('Average price', 'Average MC', 'Avg. price - Avg. MC'),
-                                  each = nrow(dat)))
+plotdat <- data.frame(date = rep(seq.Date(min(dat$date), max(dat$date), 'month'),
+                                 each = 3))
+plotdat2 <- data.frame(date = dat$date,
+                       value = c(dat$dollarsPerkWh, dat$meanMC,
+                                 dat$dollarsPerkWh - dat$meanMC),
+                       facet = c(rep('Average Prices', times = nrow(dat)*2),
+                                 rep('Difference', times =nrow(dat))),
+                       label = rep(c('Average price', 'Average MC', 'Avg. price - Avg. MC'),
+                                   each = nrow(dat)))
+plotdat <- left_join(plotdat, plotdat2, 'date')
+plotdat$facet <- rep(c('Average prices', 'Average prices', 'Difference'),
+                     length.out = nrow(plotdat))
+plotdat$label <- rep(c('Avg. price', 'Avg. MC', 'Avg. price - Avg. MC'),
+                     length.out = nrow(plotdat))
+rm(plotdat2)
 
-plotdat <- plotdat[plotdat$date <= '2020-10-31',]
+plotdat <- plotdat[plotdat$date >= '2012-01-01' & plotdat$date <= '2020-10-31',]
 ggplot(data = plotdat, aes(x = date, y = value,color = label)) +
   geom_line(size = 1.3) +
   labs(x = NULL, y = '$/kWh', color = NULL) +
@@ -122,4 +146,4 @@ ggplot(data = plotdat, aes(x = date, y = value,color = label)) +
               method = 'lm', color = 'gray35') +
   theme(text = element_text(size = 15), legend.position = 'bottom')
 ggsave(filename = "D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/05 difference in avg MC and avg total price.png",
-       height = 5, width = 7, dpi = 300)
+       height = 5, width = 8, dpi = 300)
