@@ -18,6 +18,25 @@ dat_UHdemand <- readxl::read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/H
 dat_UHdemand_fy2022 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/fy22_totalized_substation_power.csv")
 mcHeco <- mcHeco[order(mcHeco$date_time),]
 
+### COMBINE ALL DATA UPDATES HERE ###
+
+# add FY 2022 UH load data
+dat_UHdemand_fy2022$meter_id <- NULL
+dat_UHdemand_fy2022$datetime <- as.POSIXlt(dat_UHdemand_fy2022$datetime,
+                                           format = '%m/%d/%Y %H:%M:%S')
+vec_dates_fy22 <- unique(as.Date(dat_UHdemand_fy2022$datetime))
+dat_UHdemand_fy2022_wide <- matrix(dat_UHdemand_fy2022$Power..kW.,
+                                   nrow = length(vec_dates_fy22),
+                                   byrow = TRUE)
+dat_UHdemand_fy2022_wide <- cbind(vec_dates_fy22, dat_UHdemand_fy2022_wide)
+dat_UHdemand_fy2022_wide <- as.data.frame(dat_UHdemand_fy2022_wide)
+colnames(dat_UHdemand_fy2022_wide) <- colnames(dat_UHdemand)
+dat_UHdemand_fy2022_wide[,1] <- vec_dates_fy22
+dat_UHdemand <- rbind(dat_UHdemand, dat_UHdemand_fy2022_wide)
+rm(vec_dates_fy22, dat_UHdemand_fy2022, dat_UHdemand_fy2022_wide)
+
+###
+
 # fix UH demand column names and timezone
 time_seq <- as.character(seq(from=as.POSIXct("2012-01-01 00:00", tz="HST"), 
                              to=as.POSIXct("2012-01-01 23:45", tz="HST"), by="15 min"))
@@ -49,7 +68,7 @@ mcHeco <- left_join(mcHeco, dat_UHbill_daily_MCpricing[c('date', 'mc_prevWeekLoa
 ##### subtract solar PV production from demand #####
 
 # load PV production data and format datetime column for merging with demand data
-dat_PV <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/Solar production/historicalProduction15min.csv")
+dat_PV <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/Solar production/AlsoEnergy PowerTrack 15 min production data through 2022-07-31.csv")
 colnames(dat_PV) <- c('siteTime', 'elkorProduction_kWh', 'sitePerformanceEstimate_kWh')
 dat_PV <- dat_PV %>%
   mutate(datetime = as.POSIXct(siteTime, format = "%m-%d-%Y %H:%M:%OS"),
@@ -58,13 +77,13 @@ dat_PV$siteTime <- NULL
 
 # clean PV production data
 dat_PV[dat_PV < 0 & !is.na(dat_PV)] <- 0  # production can't be negative
-dat_PV$datetime <- dat_PV$datetime - 105*60  # subtract 105 minutes from Also Energy datetime to match with (correct) Sunny Portal data
+#dat_PV$datetime <- dat_PV$datetime - 105*60  # subtract 105 minutes from Also Energy datetime to match with (correct) Sunny Portal data -- FIXED IN SOURCE DATA
 dat_PV$time <- substr(dat_PV$datetime, 12, 16)  # create hour-minute variable
   dat_PV$time <- as.numeric(gsub(':', '', dat_PV$time))
 dat_PV$elkorProduction_kWh[dat_PV$time %in% c(0:600, 2030:2259) & !is.na(dat_PV$elkorProduction_kWh)] <- 0  # production can't be positive when sun isn't out
 dat_PV$hour <- NULL
-dat_PV[is.na(dat_PV$elkorProduction_kWh) & dat_PV$datetime >= as.POSIXct('2019-07-30 17:15:00'), 'elkorProduction_kWh'] <-
-  dat_PV[is.na(dat_PV$elkorProduction_kWh) & dat_PV$datetime >= as.POSIXct('2019-07-30 17:15:00'), 'sitePerformanceEstimate_kWh']  # replace NA values with estimated performance data (missing days), but only after data gathering started
+dat_PV <- dat_PV[which(!is.na(dat_PV$elkorProduction_kWh))[[1]]:nrow(dat_PV),]  # remove leading NAs (no PV production tracked)
+dat_PV$elkorProduction_kWh[is.na(dat_PV$elkorProduction_kWh)] <- 0  # fill missing data with 0 productions
 
 # PV data has missing timestamps. Fill them in with 0
 dat_PV2 <- data.frame(datetime = seq.POSIXt(min(dat_PV$datetime), max(dat_PV$datetime), by = '15 min'))
@@ -88,8 +107,9 @@ dat_UHdemand_15min <- left_join(dat_UHdemand_15min, dat_PV, 'datetime')
 # simulate demand with additional PV production, based on merged PV data
 dat_UHdemand_15min$consumption_kWh_pv1MW <- dat_UHdemand_15min$load_kW_mean15min/4 # convert average kW load to total kWh consumption in each 15-minute interval - existing 1MW PV system
 dat_UHdemand_15min <- dat_UHdemand_15min %>%
-  mutate(consumption_kWh_pv2MW = consumption_kWh_pv1MW -  elkorProduction_kWh,     # subtract production to simulate adding additional 1 MW PV
-         consumption_kWh_pv5MW = consumption_kWh_pv1MW - (elkorProduction_kWh*4))  # subtract production * 4 to simulate a 5 MW PV system
+  mutate(consumption_kWh_pv2MW  = consumption_kWh_pv1MW - (elkorProduction_kWh*01),     # subtract production to simulate adding additional 1 MW PV
+         consumption_kWh_pv5MW  = consumption_kWh_pv1MW - (elkorProduction_kWh*04),
+         consumption_kWh_pv17MW = consumption_kWh_pv1MW - (elkorProduction_kWh*16))
 
 
 
@@ -100,13 +120,15 @@ dat_UHdemand_15min <- dat_UHdemand_15min %>%
 dat_UHdemand_15min$hourID <- substr(dat_UHdemand_15min$datetime, 1, 13)  # hour group for summing
 dat_UHdemand_hourly = with(dat_UHdemand_15min,
                            data.frame(datetime  = datetime[!duplicated(hourID)],  # unique hours
-                                      consumption_kWh_pv1MW = aggregate(consumption_kWh_pv1MW, list(hourID), sum, na.rm = TRUE)[,2],
-                                      consumption_kWh_pv2MW = aggregate(consumption_kWh_pv2MW, list(hourID), sum, na.rm = TRUE)[,2],
-                                      consumption_kWh_pv5MW = aggregate(consumption_kWh_pv5MW, list(hourID), sum, na.rm = TRUE)[,2]))
+                                      consumption_kWh_pv1MW  = aggregate(consumption_kWh_pv1MW,  list(hourID), sum, na.rm = TRUE)[,2],
+                                      consumption_kWh_pv2MW  = aggregate(consumption_kWh_pv2MW,  list(hourID), sum, na.rm = TRUE)[,2],
+                                      consumption_kWh_pv5MW  = aggregate(consumption_kWh_pv5MW,  list(hourID), sum, na.rm = TRUE)[,2],
+                                      consumption_kWh_pv17MW = aggregate(consumption_kWh_pv17MW, list(hourID), sum, na.rm = TRUE)[,2]))
 
 # since used na.rm for summing, replace 0 consumption with NA
 dat_UHdemand_hourly$consumption_kWh_pv2MW[dat_UHdemand_hourly$consumption_kWh_pv2MW == 0] <- NA
 dat_UHdemand_hourly$consumption_kWh_pv5MW[dat_UHdemand_hourly$consumption_kWh_pv5MW == 0] <- NA
+dat_UHdemand_hourly$consumption_kWh_pv17MW[dat_UHdemand_hourly$consumption_kWh_pv17MW == 0] <- NA
 
 # merge marginal costs to demand
 colnames(mcHeco) <- c('datetime', 'date', 'mc_dollarsPerMWh', 'mcPrevWkLoadWtd_dollarsPerMWh')
@@ -123,25 +145,28 @@ dat_UHdemand_hourly_complete <- dat_UHdemand_hourly[complete.cases(dat_UHdemand_
 
 # calculate hourly average kWh for each year and each PV scenario - used later for baselines under GP tariff
 dat_UHdemand_hourlyAvg <- with(dat_UHdemand_hourly_complete,
-                               aggregate(list(consumption_kWh_pv1MW, consumption_kWh_pv2MW, consumption_kWh_pv5MW),
+                               aggregate(list(consumption_kWh_pv1MW, consumption_kWh_pv2MW,
+                                              consumption_kWh_pv5MW, consumption_kWh_pv17MW),
                                          list(year, hour),
                                          mean, na.rm  = TRUE))
-colnames(dat_UHdemand_hourlyAvg) <- c('year', 'hour', 'consumption_kWh_pv1MW', 'consumption_kWh_pv2MW', 'consumption_kWh_pv5MW')
+colnames(dat_UHdemand_hourlyAvg) <- c('year', 'hour', 'consumption_kWh_pv1MW', 'consumption_kWh_pv2MW', 'consumption_kWh_pv5MW', 'consumption_kWh_pv17MW')
 dat_UHdemand_hourlyAvg <- dat_UHdemand_hourlyAvg[with(dat_UHdemand_hourlyAvg, order(year, hour)),]  # reorder rows accding to date
 
 # plot average hourly consumption by PV scenario
-plotdat <- with(dat_UHdemand_hourlyAvg, data.frame(value = c(aggregate(consumption_kWh_pv1MW, list(hour), mean, na.rm  = TRUE)[,2],
-                                                             aggregate(consumption_kWh_pv2MW, list(hour), mean, na.rm  = TRUE)[,2],
-                                                             aggregate(consumption_kWh_pv5MW, list(hour), mean, na.rm  = TRUE)[,2]),
-                                                   scenario = rep(c('1 MW (current)', '2 MW', '5 MW'), each = 24),
+plotdat <- with(dat_UHdemand_hourlyAvg, data.frame(value = c(aggregate(consumption_kWh_pv1MW,  list(hour), mean, na.rm  = TRUE)[,2],
+                                                             aggregate(consumption_kWh_pv2MW,  list(hour), mean, na.rm  = TRUE)[,2],
+                                                             aggregate(consumption_kWh_pv5MW,  list(hour), mean, na.rm  = TRUE)[,2],
+                                                             aggregate(consumption_kWh_pv17MW, list(hour), mean, na.rm  = TRUE)[,2]),
+                                                   scenario = rep(c('1 MW (current)', '2 MW', '5 MW', '17 MW'), each = 24),
                                                    hour = 0:23))
+plotdat$scenario <- factor(plotdat$scenario, levels = c('1 MW (current)', '2 MW', '5 MW', '17 MW'))
 
 ggplot(data = plotdat, aes(x = hour, y = value, color = scenario)) +
   geom_line(size = 1.3, alpha = 0.7) +
   labs(x = 'Hour of day', y = 'Hourly consumption (kWh)', color = 'PV system') +
   theme(text = element_text(size = 14))
 ggsave(filename = "D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/04_UH average hourly consumption by PV scenario.png",
-       dpi = 300, height = 4,  width = 6)
+       dpi = 300, height = 4,  width = 8)
 
 
 
@@ -152,8 +177,9 @@ ggsave(filename = "D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and f
 dat_UHdemand_hourlyAvg$consumption_kWh_pv2MW <- NULL
 
 # convert kWh consumption to average load (kW)
-dat_UHdemand_hourlyAvg$load_kW_pv1MW <- dat_UHdemand_hourlyAvg$consumption_kWh_pv1MW
-dat_UHdemand_hourlyAvg$load_kW_pv5MW <- dat_UHdemand_hourlyAvg$consumption_kWh_pv5MW
+dat_UHdemand_hourlyAvg$load_kW_pv1MW  <- dat_UHdemand_hourlyAvg$consumption_kWh_pv1MW
+dat_UHdemand_hourlyAvg$load_kW_pv5MW  <- dat_UHdemand_hourlyAvg$consumption_kWh_pv5MW
+dat_UHdemand_hourlyAvg$load_kW_pv17MW <- dat_UHdemand_hourlyAvg$consumption_kWh_pv17MW
 
 # use difference in loads to calculate average PV production
 dat_UHdemand_hourlyAvg$pv_production_kW <-
@@ -211,12 +237,13 @@ diff(aggregate(plotdat$value, list(plotdat$var), sum)[,2][c(2,1)]) * 0.12 * 30  
 # convert kWh consumption under each PV scenario to mean 15-min kW load
 colnames(dat_UHdemand_15min)[colnames(dat_UHdemand_15min) == 'load_kW_mean15min'] <- 'mean15minLoad_kW_pv1MW'
 dat_UHdemand_15min <- dat_UHdemand_15min %>%
-  mutate(mean15minLoad_kW_pv2MW = consumption_kWh_pv2MW * 4,
-         mean15minLoad_kW_pv5MW = consumption_kWh_pv5MW * 4,
+  mutate(mean15minLoad_kW_pv2MW  = consumption_kWh_pv2MW  * 4,
+         mean15minLoad_kW_pv5MW  = consumption_kWh_pv5MW  * 4,
+         mean15minLoad_kW_pv17MW = consumption_kWh_pv17MW * 4,
          .after = mean15minLoad_kW_pv1MW)
 
 # save data
 saveRDS(dat_UHdemand_15min[c('datetime',
-                             'mean15minLoad_kW_pv1MW', 'mean15minLoad_kW_pv2MW', 'mean15minLoad_kW_pv5MW',
-                             'consumption_kWh_pv1MW',  'consumption_kWh_pv2MW',  'consumption_kWh_pv5MW')],
+                             'mean15minLoad_kW_pv1MW', 'mean15minLoad_kW_pv2MW', 'mean15minLoad_kW_pv5MW', 'mean15minLoad_kW_pv17MW',
+                             'consumption_kWh_pv1MW',  'consumption_kWh_pv2MW',  'consumption_kWh_pv5MW',  'consumption_kWh_pv17MW')],
         file = c('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Intermediate/04 demand under simulated solar production.rds'))
