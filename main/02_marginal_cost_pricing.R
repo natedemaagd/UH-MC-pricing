@@ -106,8 +106,12 @@ for(i in 1:nrow(dat_UHbill_daily)){
     
     # get week ID of previous week and make time sequence for that week
     week_i_minus_1 <- dat_UHbill_daily$weekID[[i]] - 1
-    timeseq_week_i_minus1 <- data.frame(date_time = seq.POSIXt(as.POSIXct(paste0(min(dat_UHbill_daily[dat_UHbill_daily$weekID == week_i_minus_1 & !is.na(dat_UHbill_daily$weekID), 'date']), ' 00:00:00')),
-                                                               as.POSIXct(paste0(max(dat_UHbill_daily[dat_UHbill_daily$weekID == week_i_minus_1 & !is.na(dat_UHbill_daily$weekID), 'date']), ' 23:45:00')),
+    timeseq_week_i_minus1 <- data.frame(date_time = seq.POSIXt(as.POSIXct(paste0(min(dat_UHbill_daily[dat_UHbill_daily$weekID == week_i_minus_1 &
+                                                                                                        !is.na(dat_UHbill_daily$weekID), 'date']),
+                                                                                 ' 00:00:00')),
+                                                               as.POSIXct(paste0(max(dat_UHbill_daily[dat_UHbill_daily$weekID == week_i_minus_1 &
+                                                                                                        !is.na(dat_UHbill_daily$weekID), 'date']),
+                                                                                 ' 23:45:00')),
                                                                by = '15 min'))
     # get lambdas for the previous-week time sequence
     lambdas <- mcHeco[mcHeco$date_time %in% timeseq_week_i_minus1$date_time,]
@@ -117,32 +121,41 @@ for(i in 1:nrow(dat_UHbill_daily)){
     
     # interpolate 15-min values and fill NAs at the end
     timeseq_week_i_minus1$mc <- zoo::na.approx(timeseq_week_i_minus1$mc, na.rm = FALSE)
-    last_mc <- timeseq_week_i_minus1[!is.na(timeseq_week_i_minus1$mc),][nrow(timeseq_week_i_minus1[!is.na(timeseq_week_i_minus1$mc),]), 'mc']
+    last_mc <-
+      timeseq_week_i_minus1[!is.na(timeseq_week_i_minus1$mc),][nrow(timeseq_week_i_minus1[!is.na(timeseq_week_i_minus1$mc),]),
+                                                               'mc']
     timeseq_week_i_minus1$mc[is.na(timeseq_week_i_minus1$mc)] <- last_mc
     
     # add demand values
-    demand_kw <- dat_UHdemand[as.Date(dat_UHdemand$date) %in% as.Date(timeseq_week_i_minus1$date_time),]
+    demand_kw <- dat_UHdemand[as.Date(dat_UHdemand$date) %in%
+                                as.Date(timeseq_week_i_minus1$date_time),]
     demand_kw <- demand_kw[1:(nrow(demand_kw)-1), 2:ncol(demand_kw)]
     timeseq_week_i_minus1$demand_kw <- unlist(demand_kw)
     
     # calculate previous week load-weighted mean MC and corresponding daily bill
     mc_wtd_prevWeek <- with(timeseq_week_i_minus1, weighted.mean(mc, demand_kw))
-    dat_UHbill_daily$dollars_mc_prevWeekLoadWtd[[i]] <- sum(mc_wtd_prevWeek * timeseq$demand_kw) / 1000 / 4
+    dat_UHbill_daily$dollars_mc_prevWeekLoadWtd[[i]] <- sum(mc_wtd_prevWeek *
+                                                              timeseq$demand_kw) / 1000 / 4
     dat_UHbill_daily$mc_prevWeekLoadWtd[[i]] <- mc_wtd_prevWeek
   }
 }
-rm(dat_day_i, demand_kw, lambdas, timeseq, timeseq_week_i_minus1, time_seq, i, last_mc, mc_wtd_prevWeek, week_i_minus_1)
+rm(dat_day_i, demand_kw, lambdas, timeseq, timeseq_week_i_minus1, time_seq, i,
+   last_mc, mc_wtd_prevWeek, week_i_minus_1)
 
 # sum kWh usage and bill by month
 dat_UHbill_daily$year_month <- substr(dat_UHbill_daily$date, 1, 7)
-dat_UHbill_monthly <- aggregate(dat_UHbill_daily[c('demand_kwh', 'dollars_mc', 'dollars_mc_prevWeekLoadWtd')], list(dat_UHbill_daily$year_month), sum, na.rm = TRUE)
+dat_UHbill_monthly <- aggregate(dat_UHbill_daily[c('demand_kwh', 'dollars_mc', 'dollars_mc_prevWeekLoadWtd')],
+                                list(dat_UHbill_daily$year_month), sum, na.rm = TRUE)
 colnames(dat_UHbill_monthly)[[1]] <- 'year_month'
 
 # plot monthly difference between marginal cost and previous-week-load-weighted marginal cost as 
 ggplot(data = dat_UHbill_monthly[-c(1, 44:48),]) +
-  geom_line(aes(x = as.Date(paste0(year_month, '-15')), y = (dollars_mc_prevWeekLoadWtd - dollars_mc)/(mean(dollars_mc_prevWeekLoadWtd - dollars_mc)))) +
+  geom_line(aes(x = as.Date(paste0(year_month, '-15')),
+                y = (dollars_mc_prevWeekLoadWtd - dollars_mc)/(mean(dollars_mc_prevWeekLoadWtd - dollars_mc)))) +
   labs(x = NULL, y = '(Previous week load-weighted MC charge) - (MC charge)\nas proportion of mean difference') +
-  annotate(geom = 'text', x = as.Date('2018-01-01'), y = -150, label = paste0('Mean diff. = ', round((mean(dat_UHbill_monthly$dollars_mc_prevWeekLoadWtd - dat_UHbill_monthly$dollars_mc)),2))) +
+  annotate(geom = 'text', x = as.Date('2018-01-01'), y = -150,
+           label = paste0('Mean diff. = ', round((mean(dat_UHbill_monthly$dollars_mc_prevWeekLoadWtd -
+                                                         dat_UHbill_monthly$dollars_mc)),2))) +
   theme(text = element_text(size = 16))
 ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_monthly_MC_difference_as_proportion_of_mean_difference.png',
        height = 6, width = 8)
@@ -153,13 +166,16 @@ ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and f
 ##### merge actual bills and determine monthly revenue deficit compared to DS schedule #####
 
 # merge actual bills to MC data
-dat_UHbill_monthly <- dplyr::left_join(dat_UHbill_monthly, dat_DSpricing[c('year_month', 'totalBill_dollars_constructed')])
+dat_UHbill_monthly <-
+  dplyr::left_join(dat_UHbill_monthly,
+                   dat_DSpricing[c('year_month', 'totalBill_dollars_constructed')])
 
 # # LIMIT DATA TO BEFORE DEC 2020 - CHANGE IF NEW DATA OBTAINED
 # dat_UHbill_monthly <- dat_UHbill_monthly[12:41,]
 
 # calculate dollar amount required to generate same revenue as billing under DS schedule (constructed bill)
-dat_UHbill_monthly$dollars_revenueDeficit <- dat_UHbill_monthly$totalBill_dollars_constructed - dat_UHbill_monthly$dollars_mc
+dat_UHbill_monthly$dollars_revenueDeficit <-
+  dat_UHbill_monthly$totalBill_dollars_constructed - dat_UHbill_monthly$dollars_mc
 
 # plot time series of revenue deficit ()
 ggplot(data = dat_UHbill_monthly) +
@@ -173,22 +189,27 @@ ggplot(data = dat_UHbill_monthly) +
 ##### by year, calculate fixed monthly charge required to generate same revenue as DS schedule #####
 
 # split data by year
-dat_UHbill_monthly_byYear <- split(dat_UHbill_monthly, substr(dat_UHbill_monthly$year_month, 1, 4))
+dat_UHbill_monthly_byYear <- split(dat_UHbill_monthly,
+                                   substr(dat_UHbill_monthly$year_month, 1, 4))
 
 # get total revenue under DS schedule for each year
-yearly_revenue_DS <- sapply(dat_UHbill_monthly_byYear, function(df) sum(df$totalBill_dollars_constructed))
+yearly_revenue_DS <- sapply(dat_UHbill_monthly_byYear,
+                            function(df) sum(df$totalBill_dollars_constructed))
 
 # get total revenue from MC pricing for each year
-yearly_revenue_MConly <- sapply(dat_UHbill_monthly_byYear, function(df) sum(df$dollars_mc))
+yearly_revenue_MConly <- sapply(dat_UHbill_monthly_byYear,
+                                function(df) sum(df$dollars_mc))
 
 # get yearly deficit from MC pricing compared to DS pricing and calculate monthly fixed charge that makes up the difference
 yearly_deficit <- yearly_revenue_DS - yearly_revenue_MConly
 monthly_fixed_charge_by_year <- c()
 for(t in 1:length(dat_UHbill_monthly_byYear)){
-  monthly_fixed_charge_by_year[[t]] <- yearly_deficit[[t]] / nrow(dat_UHbill_monthly_byYear[[t]])
+  monthly_fixed_charge_by_year[[t]] <- yearly_deficit[[t]] /
+    nrow(dat_UHbill_monthly_byYear[[t]])
 }
 names(monthly_fixed_charge_by_year) <- names(dat_UHbill_monthly_byYear)
-rm(t, yearly_deficit, dat_UHbill_monthly_byYear, yearly_revenue_DS, yearly_revenue_MConly)
+rm(t, yearly_deficit, dat_UHbill_monthly_byYear, yearly_revenue_DS,
+   yearly_revenue_MConly)
 
 
 
@@ -196,26 +217,37 @@ rm(t, yearly_deficit, dat_UHbill_monthly_byYear, yearly_revenue_DS, yearly_reven
 ##### SD of difference by week and month #####
 
 # get SD of difference by week, add week, then plot
-difference_SD_by_week <- aggregate(dat_UHbill_daily$dollars_mc_prevWeekLoadWtd - dat_UHbill_daily$dollars_mc, list(dat_UHbill_daily$weekID), sd)
+difference_SD_by_week <-
+  aggregate(dat_UHbill_daily$dollars_mc_prevWeekLoadWtd -
+              dat_UHbill_daily$dollars_mc,
+            list(dat_UHbill_daily$weekID), sd)
 colnames(difference_SD_by_week) <- c('weekID', 'MC_difference_SD')
 weekDates <- dat_UHbill_daily[!duplicated(dat_UHbill_daily$weekID), c('weekID', 'date')]
 difference_SD_by_week <- dplyr::left_join(difference_SD_by_week, weekDates, 'weekID')
 ggplot(data = difference_SD_by_week) +
   geom_line(aes(x = date, y = MC_difference_SD)) +
   labs(x = NULL, y = 'Weekly SD of difference ($)') +
-  annotate(geom = 'text', x = as.POSIXct('2018-01-01'), y = 5000, label = paste0('Mean SD = $', round(mean(difference_SD_by_week$MC_difference_SD, na.rm = TRUE))))
+  annotate(geom = 'text', x = as.POSIXct('2018-01-01'), y = 5000,
+           label = paste0('Mean SD = $', round(mean(difference_SD_by_week$MC_difference_SD,
+                                                    na.rm = TRUE))))
 ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_weekly_SD_of_MC_difference.png')
 rm(difference_SD_by_week, weekDates)
 
 # get SD of difference by month, add month, then plot
-difference_SD_by_month <- aggregate(dat_UHbill_daily$dollars_mc_prevWeekLoadWtd - dat_UHbill_daily$dollars_mc, list(dat_UHbill_daily$year_month), sd)
+difference_SD_by_month <-
+  aggregate(dat_UHbill_daily$dollars_mc_prevWeekLoadWtd -
+              dat_UHbill_daily$dollars_mc,
+            list(dat_UHbill_daily$year_month), sd)
 colnames(difference_SD_by_month) <- c('year_month', 'MC_difference_SD')
 monthDates <- dat_UHbill_daily[!duplicated(dat_UHbill_daily$year_month), c('year_month', 'date')]
 difference_SD_by_month <- dplyr::left_join(difference_SD_by_month, monthDates, 'year_month')
 ggplot(data = difference_SD_by_month) +
   geom_line(aes(x = date, y = MC_difference_SD)) +
   labs(x = NULL, y = 'Monthly SD of difference ($)') +
-  annotate(geom = 'text', x = as.POSIXct('2018-01-01'), y = 4000, label = paste0('Mean SD = $', round(mean(difference_SD_by_month$MC_difference_SD, na.rm = TRUE))))
+  annotate(geom = 'text', x = as.POSIXct('2018-01-01'), y = 4000,
+           label = paste0('Mean SD = $',
+                          round(mean(difference_SD_by_month$MC_difference_SD,
+                                     na.rm = TRUE))))
 ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_monthly_SD_of_MC_difference.png')
 rm(difference_SD_by_month, monthDates)
 
@@ -296,7 +328,10 @@ ggplot(data = dat_wtdMC, aes(x = wtdMC_prevWeek, y = wtdMC_currentWeek)) +
 ##### plot - mean demand-weighted MC against previous week demand-weighted MC #####
 
 # create data.frame of UH loads (vectorized)
-dat_UHdemand_vectorized <- data.frame(date_time = seq.POSIXt(min(dat_UHdemand$date), max(dat_UHdemand$date)+lubridate::days(1), by = '15 min'))
+dat_UHdemand_vectorized <-
+  data.frame(date_time = seq.POSIXt(min(dat_UHdemand$date),
+                                    max(dat_UHdemand$date)+lubridate::days(1),
+                                    by = '15 min'))
 dat_UHdemand_vectorized$kW <- c(unlist(dat_UHdemand[2:ncol(dat_UHdemand)]), NA)
 
 # merge MC to load, linearly interpolate NAs (hourly to 15-min)
@@ -304,7 +339,10 @@ dat_UHdemand_vectorized <- dplyr::left_join(dat_UHdemand_vectorized, mcHeco, 'da
 dat_UHdemand_vectorized$mc <- zoo::na.approx(dat_UHdemand_vectorized$mc, na.rm = FALSE)
 
 # determine week of each date_time
-dat_UHdemand_vectorized$year_week <- paste(lubridate::year(dat_UHdemand_vectorized$date_time), lubridate::isoweek(dat_UHdemand_vectorized$date_time), sep = '-')
+dat_UHdemand_vectorized$year_week <-
+  paste(lubridate::year(dat_UHdemand_vectorized$date_time),
+        lubridate::isoweek(dat_UHdemand_vectorized$date_time),
+        sep = '-')
 
 # load-weighted mean MC by week
 dat_UHdemand_vectorized <- dat_UHdemand_vectorized %>%
@@ -312,8 +350,11 @@ dat_UHdemand_vectorized <- dat_UHdemand_vectorized %>%
   mutate(weekly_loadWeighted_mc = weighted.mean(mc, kW))
 
 # get unique year-weeks to plot, get lagged MC value
-dat_plot <- dat_UHdemand_vectorized[!duplicated(dat_UHdemand_vectorized$year_week), c('year_week', 'weekly_loadWeighted_mc')]
-dat_plot$prevWeek_loadWeighted_mc <- c(NA, dat_plot$weekly_loadWeighted_mc[-length(dat_plot$weekly_loadWeighted_mc)])
+dat_plot <-
+  dat_UHdemand_vectorized[!duplicated(dat_UHdemand_vectorized$year_week),
+                          c('year_week', 'weekly_loadWeighted_mc')]
+dat_plot$prevWeek_loadWeighted_mc <-
+  c(NA, dat_plot$weekly_loadWeighted_mc[-length(dat_plot$weekly_loadWeighted_mc)])
 
 
 # plot data

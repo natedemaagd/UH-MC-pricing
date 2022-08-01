@@ -89,7 +89,8 @@ ggplot() +
   geom_line(data = plotdat,
             aes(x = date, y = value, color = pricingStructure, linetype = scenario),
             size = 1.3, alpha = 0.7) +
-  labs(color = 'Pricing\nstructure',  linetype = 'PV capacity', x = NULL, y = 'Monthly bill (million $)') +
+  labs(color = 'Pricing\nstructure',  linetype = 'PV capacity',
+       x = NULL, y = 'Monthly bill (million $)') +
   scale_linetype_manual(values = c('solid', 'longdash', 'dashed', 'dotted')) +
   geom_line(data = plotdat[plotdat$scenario == '1 MW' & plotdat$pricingStructure == 'DS',],
             aes(x = date, y = value), color = scales::hue_pal()(3)[[1]], alpha = 0.7, size = 2) +

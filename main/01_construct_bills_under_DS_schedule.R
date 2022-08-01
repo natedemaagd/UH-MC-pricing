@@ -55,7 +55,8 @@ dat_15min_yearmonth <- split(dat_15min, dat_15min$year_month)
 
 # get max 15-min load in each year-month
 billing_demand <- data.frame(year_month = unique(dat_15min$year_month),
-                             max_15min_kW = sapply(dat_15min_yearmonth, function(df) max(df[2:(ncol(df)-1)], na.rm = TRUE)))
+                             max_15min_kW = sapply(dat_15min_yearmonth,
+                                                   function(df) max(df[2:(ncol(df)-1)], na.rm = TRUE)))
 rm(dat_15min_yearmonth)
 
 # get max 15-min load for preceding 11 months
@@ -72,11 +73,15 @@ billing_demand$mean_currentMonth_and_maxPreceding11months_kW <- rowMeans(billing
 
 # billed demand: current month 15-min max or mean(current month, max of previous 11 months), whichever is higher. Must be at least 300 kW
 billing_demand$billing_demand_kW <- apply(billing_demand[,c('max_15min_kW', 'mean_currentMonth_and_maxPreceding11months_kW')], 1, max)
-billing_demand$billing_demand_kW <- ifelse(!is.na(billing_demand$billing_demand_kW) & billing_demand$billing_demand_kW < 300, 300, billing_demand$billing_demand_kW)  # ensure billing demand is at least 300 kW
+billing_demand$billing_demand_kW <- ifelse(!is.na(billing_demand$billing_demand_kW) & billing_demand$billing_demand_kW < 300,
+                                           300,
+                                           billing_demand$billing_demand_kW)  # ensure billing demand is at least 300 kW
 
 # calculate kWh from 15-min kW
-dat_daily_kwh <- data.frame(year_month = dat_15min$year_month, kwh = rowSums(dat_15min[,2:(ncol(dat_15min)-1)]))
-dat_monthly_kwh <- aggregate(dat_daily_kwh$kwh, list(dat_daily_kwh$year_month), sum, na.rm = TRUE)
+dat_daily_kwh <- data.frame(year_month = dat_15min$year_month,
+                            kwh = rowSums(dat_15min[,2:(ncol(dat_15min)-1)]))
+dat_monthly_kwh <- aggregate(dat_daily_kwh$kwh, list(dat_daily_kwh$year_month),
+                             sum, na.rm = TRUE)
 billing_demand$billing_demand_kWh <- dat_monthly_kwh$x/4  # divide by 4 since data in 15-min (1/4 hour) intervals
 rm(dat_daily_kwh, dat_monthly_kwh)
 
@@ -147,16 +152,21 @@ billing_demand$gif_dollars <- billing_demand$dollars_per_month
 billing_demand <- billing_demand[-(ncol(billing_demand)-1)]
 
 # calculate total bill and plot
-billing_demand$totalBill_dollars_constructed <- with(billing_demand, customerCharge_dollars + nonfuelEnergyCharge_dollars + demandCharge_dollars + ecrc_dollars + ppac_dollars + rbap_dollars + pbfs_dollars + reicrp_dollars + gif_dollars)
+billing_demand$totalBill_dollars_constructed <- with(billing_demand,
+                                                     customerCharge_dollars + nonfuelEnergyCharge_dollars +
+                                                       demandCharge_dollars + ecrc_dollars + ppac_dollars +
+                                                       rbap_dollars + pbfs_dollars + reicrp_dollars + gif_dollars)
 
-ggplot(data = billing_demand[-c(1:11),]) + geom_line(aes(x = as.Date(paste0(year_month, '-15')), y = totalBill_dollars_constructed/1e6)) +
+ggplot(data = billing_demand[-c(1:11),]) + geom_line(aes(x = as.Date(paste0(year_month, '-15')),
+                                                         y = totalBill_dollars_constructed/1e6)) +
   labs(x = NULL, y = 'Total bill (mil $)')
 
 # merge actual bills to constructed bills, then find difference b/w the bills
 billing_demand$date <- as.Date(paste0(billing_demand$year_month, '-01'))
 billing_demand <- dplyr::left_join(billing_demand, dat_actual_bills[c('date', 'bill_dollars')], by = 'date')
 colnames(billing_demand)[colnames(billing_demand) == 'bill_dollars'] <- 'totalBill_dollars_actual'
-billing_demand$bill_constructed_minus_actual <- billing_demand$totalBill_dollars_constructed - billing_demand$totalBill_dollars_actual
+billing_demand$bill_constructed_minus_actual <-
+  billing_demand$totalBill_dollars_constructed - billing_demand$totalBill_dollars_actual
 ggplot(data = billing_demand[!is.na(billing_demand$totalBill_dollars_actual),]) +
   geom_line(aes(x = date, y = bill_constructed_minus_actual/totalBill_dollars_actual*100)) +
   labs(x = NULL, y = 'Calculated bill % error')
@@ -188,20 +198,28 @@ saveRDS(billing_demand, file = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO
 ##### plots - peak load last month and last year #####
 
 # find peak consumption last month and last year
-peakDayLastMonth <- dat_15min$date[[1431+which.max(matrixStats::rowMaxs(as.matrix(dat_15min[1432:nrow(dat_15min),-c(1,ncol(dat_15min))])))]]
-peakDayLastYear  <- dat_15min$date[[1095+which.max(matrixStats::rowMaxs(as.matrix(dat_15min[1096:nrow(dat_15min),-c(1,ncol(dat_15min))])))]]
+peakDayLastMonth <-
+  dat_15min$date[[1431+which.max(matrixStats::rowMaxs(as.matrix(dat_15min[1432:nrow(dat_15min),-c(1,ncol(dat_15min))])))]]
+peakDayLastYear  <-
+  dat_15min$date[[1095+which.max(matrixStats::rowMaxs(as.matrix(dat_15min[1096:nrow(dat_15min),-c(1,ncol(dat_15min))])))]]
 
 # extract load profiles
 loadProfile_peakDayLastMonth <- data.frame(time = colnames(dat_15min[2:(ncol(dat_15min)-1)]),
-                                           load = as.vector(t(dat_15min[dat_15min$date == peakDayLastMonth, 2:(ncol(dat_15min)-1)])))
+                                           load = as.vector(t(dat_15min[dat_15min$date == peakDayLastMonth,
+                                                                        2:(ncol(dat_15min)-1)])))
 loadProfile_peakDayLastYear  <- data.frame(time = colnames(dat_15min[2:(ncol(dat_15min)-1)]),
-                                           load = as.vector(t(dat_15min[dat_15min$date == peakDayLastYear,  2:(ncol(dat_15min)-1)])))
+                                           load = as.vector(t(dat_15min[dat_15min$date == peakDayLastYear,
+                                                                        2:(ncol(dat_15min)-1)])))
 
 # combine peak data into one data.frame
-loadProfile_peaks <- data.frame(time = c(loadProfile_peakDayLastMonth$time, loadProfile_peakDayLastYear$time),
-                                load = c(loadProfile_peakDayLastMonth$load, loadProfile_peakDayLastYear$load),
-                                day  = c(rep('2021-06-03', times = nrow(loadProfile_peakDayLastMonth)),
-                                         rep('2020-10-02',  times = nrow(loadProfile_peakDayLastYear))))
+loadProfile_peaks <- data.frame(time = c(loadProfile_peakDayLastMonth$time,
+                                         loadProfile_peakDayLastYear$time),
+                                load = c(loadProfile_peakDayLastMonth$load,
+                                         loadProfile_peakDayLastYear$load),
+                                day  = c(rep('2021-06-03',
+                                             times = nrow(loadProfile_peakDayLastMonth)),
+                                         rep('2020-10-02',
+                                             times = nrow(loadProfile_peakDayLastYear))))
 
 # plot
 ggplot(data = loadProfile_peaks) +

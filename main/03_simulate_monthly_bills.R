@@ -83,7 +83,9 @@ dat_UHdemand_hourly = with(dat_UHdemand_15min,
 
 # merge marginal costs to demand
 colnames(mcHeco) <- c('datetime', 'date', 'mc_dollarsPerMWh', 'mcPrevWkLoadWtd_dollarsPerMWh')
-dat_UHdemand_hourly <- left_join(dat_UHdemand_hourly, mcHeco[c('datetime', 'mc_dollarsPerMWh', 'mcPrevWkLoadWtd_dollarsPerMWh')], 'datetime')
+dat_UHdemand_hourly <- left_join(dat_UHdemand_hourly,
+                                 mcHeco[c('datetime', 'mc_dollarsPerMWh', 'mcPrevWkLoadWtd_dollarsPerMWh')],
+                                 'datetime')
 
 # create year, month, day, hour variables
 dat_UHdemand_hourly <- cbind(dat_UHdemand_hourly,
@@ -117,22 +119,28 @@ dat_UHdemand_15min$hourID <- NULL  # get rid of previous hour variable
 dat_UHdemand_peak15min <- with(dat_UHdemand_hourly, aggregate(kWh, list(year, month), max))  # max load, current month
 colnames(dat_UHdemand_peak15min) <- c('year', 'month', 'peakLoadSameMonth_kW')  # rename columns
 dat_UHdemand_peak15min <- dat_UHdemand_peak15min[with(dat_UHdemand_peak15min, order(year, month)),]  # order rows accding to date
-dat_UHdemand_peak15min$peakLoadPrevMonth_kW <- with(dat_UHdemand_peak15min, c(NA, peakLoadSameMonth_kW[-length(peakLoadSameMonth_kW)]))  # lag by one month to get max load in previous month
+dat_UHdemand_peak15min$peakLoadPrevMonth_kW <-
+  with(dat_UHdemand_peak15min,
+       c(NA, peakLoadSameMonth_kW[-length(peakLoadSameMonth_kW)]))  # lag by one month to get max load in previous month
 
 # (B) for each month, get max load over previous 12 months
 dat_UHdemand_peak15min$peakLoadPrev12Months_kW <- NA
 for(m in 14:nrow(dat_UHdemand_peak15min)){
-  dat_UHdemand_peak15min$peakLoadPrev12Months_kW[[m]] <- with(dat_UHdemand_peak15min, max(peakLoadSameMonth_kW[(m-11):(m-1)]))
+  dat_UHdemand_peak15min$peakLoadPrev12Months_kW[[m]] <-
+    with(dat_UHdemand_peak15min, max(peakLoadSameMonth_kW[(m-11):(m-1)]))
 }
 
 # (C): find mean of (A) and (B)
-dat_UHdemand_peak15min$billing_demand_kW <- rowMeans(dat_UHdemand_peak15min[c("peakLoadPrevMonth_kW", "peakLoadPrev12Months_kW")])
+dat_UHdemand_peak15min$billing_demand_kW <-
+  rowMeans(dat_UHdemand_peak15min[c("peakLoadPrevMonth_kW", "peakLoadPrev12Months_kW")])
 
 # baseline billing demand will be mean of (C) by year
 dat_UHdemand_peak15min <- dat_UHdemand_peak15min %>%
   mutate(date = as.Date(paste(year, month, '1', sep = '-')),
          .before = year)
-dat_UHdemand_baseline_peakDemand <- with(dat_UHdemand_peak15min, aggregate(billing_demand_kW, list(year(date)), mean))
+dat_UHdemand_baseline_peakDemand <-
+  with(dat_UHdemand_peak15min,
+       aggregate(billing_demand_kW, list(year(date)), mean))
 colnames(dat_UHdemand_baseline_peakDemand) <- c('year', 'billing_demand_kW')
 
 
@@ -141,7 +149,9 @@ colnames(dat_UHdemand_baseline_peakDemand) <- c('year', 'billing_demand_kW')
 ##### create hourly and monthly baseline loads by year #####
 
 # initialize year's worth of datetime data for each baseline year
-dat_UHdemand_baseline_hourly <- data.frame(date = seq.POSIXt(as.POSIXct('2018-01-01 00:00'), as.POSIXct('2021-12-31 23:59'), by = 'hour'))
+dat_UHdemand_baseline_hourly <- data.frame(date = seq.POSIXt(as.POSIXct('2018-01-01 00:00'),
+                                                             as.POSIXct('2021-12-31 23:59'),
+                                                             by = 'hour'))
 dat_UHdemand_baseline_hourly$year  <- year(dat_UHdemand_baseline_hourly$date)
 dat_UHdemand_baseline_hourly$month <- month(dat_UHdemand_baseline_hourly$date)
 dat_UHdemand_baseline_hourly$day   <- day(dat_UHdemand_baseline_hourly$date)
@@ -151,12 +161,17 @@ dat_UHdemand_baseline_hourly$hour  <- hour(dat_UHdemand_baseline_hourly$date)
 dat_UHdemand_baseline_hourly <- left_join(dat_UHdemand_baseline_hourly, dat_UHdemand_hourlyAvg, c('year', 'hour'))
 
 # remove leap days from baseline (???)
-dat_UHdemand_baseline_hourly <- dat_UHdemand_baseline_hourly[!(month(dat_UHdemand_baseline_hourly$date) == 2 & day(dat_UHdemand_baseline_hourly$date) == 28),]
+dat_UHdemand_baseline_hourly <-
+  dat_UHdemand_baseline_hourly[!(month(dat_UHdemand_baseline_hourly$date) == 2 &
+                                   day(dat_UHdemand_baseline_hourly$date) == 28),]
 
 # baseline data: aggregate hourly to monthly (note: at this point the baseline charge is a function of the number of days in the month. This is averaged out below.)
-dat_UHdemand_baseline_monthly <- with(dat_UHdemand_baseline_hourly, aggregate(kWh, list(year, month), sum))
+dat_UHdemand_baseline_monthly <- with(dat_UHdemand_baseline_hourly,
+                                      aggregate(kWh, list(year, month), sum))
 colnames(dat_UHdemand_baseline_monthly) <- c('year', 'month', 'kWh')
-dat_UHdemand_baseline_monthly <- dat_UHdemand_baseline_monthly[with(dat_UHdemand_baseline_monthly, order(year, month)),]  # reorder rows accding to date
+dat_UHdemand_baseline_monthly <-
+  dat_UHdemand_baseline_monthly[with(dat_UHdemand_baseline_monthly,
+                                     order(year, month)),]  # reorder rows accding to date
 
 # calculate mean monthly loads for each baseline year: don't want baseline load to depend on number of days in the month so take mean of the monthly values within the baseline years
 dat_UHdemand_baseline_monthly <- with(dat_UHdemand_baseline_monthly, aggregate(kWh, list(year), mean))
@@ -183,22 +198,28 @@ all_baselinesMonthsYears <- as.data.frame(expand.grid(list(bill_month = 1:12,
 # use sourced function to calculate monthly DS bills for baseline loads (fixed charge before load deviation adjustment)
 all_baselinesMonthsYears$baselineBill_dollars <- NA
 for(i in 1:nrow(all_baselinesMonthsYears)){
-  all_baselinesMonthsYears$baselineBill_dollars[[i]] <- ds_bill_calculator(baseline_year = all_baselinesMonthsYears$baseline_year[[i]],
-                                                                           current_year = all_baselinesMonthsYears$bill_year[[i]],
-                                                                           current_month = all_baselinesMonthsYears$bill_month[[i]])
+  all_baselinesMonthsYears$baselineBill_dollars[[i]] <-
+    ds_bill_calculator(baseline_year = all_baselinesMonthsYears$baseline_year[[i]],
+                       current_year = all_baselinesMonthsYears$bill_year[[i]],
+                       current_month = all_baselinesMonthsYears$bill_month[[i]])
 }
 
 # save only the dollar value for each month
-dat_baselineMonthlyBill_dollars <- data.frame(year = rep(2018:2021, each =  12),
-                                              month = 1:12,
-                                              baseline2019 = all_baselinesMonthsYears[all_baselinesMonthsYears$baseline_year == 2019, 'baselineBill_dollars'],
-                                              baseline2020 = all_baselinesMonthsYears[all_baselinesMonthsYears$baseline_year == 2020, 'baselineBill_dollars'],
-                                              baseline2021 = all_baselinesMonthsYears[all_baselinesMonthsYears$baseline_year == 2021, 'baselineBill_dollars'])
+dat_baselineMonthlyBill_dollars <-
+  data.frame(year = rep(2018:2021, each =  12),
+             month = 1:12,
+             baseline2019 = all_baselinesMonthsYears[all_baselinesMonthsYears$baseline_year == 2019,
+                                                     'baselineBill_dollars'],
+             baseline2020 = all_baselinesMonthsYears[all_baselinesMonthsYears$baseline_year == 2020,
+                                                     'baselineBill_dollars'],
+             baseline2021 = all_baselinesMonthsYears[all_baselinesMonthsYears$baseline_year == 2021,
+                                                     'baselineBill_dollars'])
 
 rm(ds_bill_calculator, all_baselinesMonthsYears)
 
 # save baseline charges
-saveRDS(dat_baselineMonthlyBill_dollars, file = "D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Intermediate/03 GP baseline monthly charges.rds")
+saveRDS(dat_baselineMonthlyBill_dollars,
+        file = "D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Intermediate/03 GP baseline monthly charges.rds")
 
 
 
@@ -264,18 +285,33 @@ dat_UHdemand_monthly$chargeDollars_fixedCharge_baseline2020 <- dat_baselineMonth
 dat_UHdemand_monthly$chargeDollars_fixedCharge_baseline2021 <- dat_baselineMonthlyBill_dollars$baseline2021
 
 # adjust baseline charge with monthly MC-based charge/credit
-dat_UHdemand_monthly$totalBill_dollars_GPbaseline2019 <- with(dat_UHdemand_monthly, chargeDollars_fixedCharge_baseline2019 + chargeDollars_deviationFrom2019)
-dat_UHdemand_monthly$totalBill_dollars_GPbaseline2020 <- with(dat_UHdemand_monthly, chargeDollars_fixedCharge_baseline2020 + chargeDollars_deviationFrom2020)
-dat_UHdemand_monthly$totalBill_dollars_GPbaseline2021 <- with(dat_UHdemand_monthly, chargeDollars_fixedCharge_baseline2021 + chargeDollars_deviationFrom2021)
+dat_UHdemand_monthly$totalBill_dollars_GPbaseline2019 <-
+  with(dat_UHdemand_monthly,
+       chargeDollars_fixedCharge_baseline2019 + chargeDollars_deviationFrom2019)
+dat_UHdemand_monthly$totalBill_dollars_GPbaseline2020 <-
+  with(dat_UHdemand_monthly,
+       chargeDollars_fixedCharge_baseline2020 + chargeDollars_deviationFrom2020)
+dat_UHdemand_monthly$totalBill_dollars_GPbaseline2021 <-
+  with(dat_UHdemand_monthly,
+       chargeDollars_fixedCharge_baseline2021 + chargeDollars_deviationFrom2021)
 
 # merge DS pricing bills
-dat_UHdemand_monthly <- left_join(dat_UHdemand_monthly, dat_DSpricing[c('year_month', 'totalBill_dollars_constructed')], 'year_month')
-colnames(dat_UHdemand_monthly)[colnames(dat_UHdemand_monthly) == 'totalBill_dollars_constructed'] <- 'totalBill_dollars_DSpricing'
+dat_UHdemand_monthly <-
+  left_join(dat_UHdemand_monthly,
+            dat_DSpricing[c('year_month', 'totalBill_dollars_constructed')],
+            'year_month')
+colnames(dat_UHdemand_monthly)[colnames(dat_UHdemand_monthly) == 'totalBill_dollars_constructed'] <-
+  'totalBill_dollars_DSpricing'
 
 # merge monthly MC-based charges (real-time and backward-looking)
-dat_UHdemand_monthly <- left_join(dat_UHdemand_monthly, dat_UHbill_monthly_MCpricing[c('year_month', 'dollars_mc', 'dollars_mc_prevWeekLoadWtd')], 'year_month')
-colnames(dat_UHdemand_monthly)[colnames(dat_UHdemand_monthly) == 'dollars_mc'] <- 'totalBill_dollars_MargCostRTP'
-colnames(dat_UHdemand_monthly)[colnames(dat_UHdemand_monthly) == 'dollars_mc_prevWeekLoadWtd'] <- 'totalBill_dollars_MargCostPrevWeekLoadWtd'
+dat_UHdemand_monthly <-
+  left_join(dat_UHdemand_monthly,
+            dat_UHbill_monthly_MCpricing[c('year_month', 'dollars_mc', 'dollars_mc_prevWeekLoadWtd')],
+            'year_month')
+colnames(dat_UHdemand_monthly)[colnames(dat_UHdemand_monthly) == 'dollars_mc'] <-
+  'totalBill_dollars_MargCostRTP'
+colnames(dat_UHdemand_monthly)[colnames(dat_UHdemand_monthly) == 'dollars_mc_prevWeekLoadWtd'] <-
+  'totalBill_dollars_MargCostPrevWeekLoadWtd'
 
 
 
@@ -302,10 +338,14 @@ plotdat_DS <- data.frame(value = with(dat_UHdemand_monthly, c(totalBill_dollars_
 plotdat_DS$baseYear <- factor(plotdat_DS$baseYear, levels = c('Actual bill', '2019', '2020', '2021'))
 
 # melt MC data and create factor levels
-plotdat_MC <- data.frame(value = with(dat_UHdemand_monthly, c(totalBill_dollars_MargCostRTP, totalBill_dollars_MargCostPrevWeekLoadWtd)),
-                         pricingStructure = rep(c('Real-time', 'Prior week\nload-weighted'), each = nrow(dat_UHdemand_monthly)),
+plotdat_MC <- data.frame(value = with(dat_UHdemand_monthly,
+                                      c(totalBill_dollars_MargCostRTP,
+                                        totalBill_dollars_MargCostPrevWeekLoadWtd)),
+                         pricingStructure = rep(c('Real-time', 'Prior week\nload-weighted'),
+                                                each = nrow(dat_UHdemand_monthly)),
                          date = rep(dat_UHdemand_monthly$date, times = 2))
-plotdat_MC$pricingStructure <- factor(plotdat_MC$pricingStructure, levels = c('Real-time', 'Prior week\nload-weighted'))
+plotdat_MC$pricingStructure <- factor(plotdat_MC$pricingStructure,
+                                      levels = c('Real-time', 'Prior week\nload-weighted'))
 
 # in MC data, add various fixed charges
 plotdat_MC <- rbind(plotdat_MC, plotdat_MC, plotdat_MC)
@@ -320,13 +360,17 @@ ggplot() +
   # plot GP tariff bills
   geom_line(data = plotdat_DS[plotdat_DS$baseYear != 'Actual bill',],
             aes(x = date, y = value/1e6, color = baseYear), size = 1.2) +
-  scale_color_manual(values = scales::hue_pal()(6)[1:3], name = 'GP tariff pricing\nby indicated\nbaseline year', guide = guide_legend(order = 2)) +
+  scale_color_manual(values = scales::hue_pal()(6)[1:3],
+                     name = 'GP tariff pricing\nby indicated\nbaseline year',
+                     guide = guide_legend(order = 2)) +
   
   # plot true MC bills: prior-week load-weighted MC only
   new_scale_color() +
   geom_line(data = plotdat_MC[plotdat_MC$pricingStructure == 'Prior week\nload-weighted',],
             aes(x = date, y = value/1e6, color = fixedCharge), size = 1.2, linetype = 'dotted') +
-  scale_color_manual(values = scales::hue_pal()(6)[4:6], name = 'True MC pricing\nby fixed charge', guide = guide_legend(order = 3)) +
+  scale_color_manual(values = scales::hue_pal()(6)[4:6],
+                     name = 'True MC pricing\nby fixed charge',
+                     guide = guide_legend(order = 3)) +
   
   # plot actual bills
   new_scale_color() +
@@ -385,7 +429,8 @@ rm(dat_monthlykWh)
 plotdat_kWh <- dat_UHdemand_monthly[c('date', 'demand_kWh')]
 plotdat_kWh$month <- month(plotdat_kWh$date)
 plotdat_kWh$year  <- year(plotdat_kWh$date)
-plotdat_kWh <- reshape2::melt(plotdat_kWh[c('month', 'year', 'demand_kWh')], id.vars = c('month', 'year'))
+plotdat_kWh <- reshape2::melt(plotdat_kWh[c('month', 'year', 'demand_kWh')],
+                              id.vars = c('month', 'year'))
 plotdat_kWh <- plotdat_kWh[!(plotdat_kWh$year %in% c(2017, 2022)),]
 
 # plot

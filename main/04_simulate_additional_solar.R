@@ -80,17 +80,21 @@ dat_PV[dat_PV < 0 & !is.na(dat_PV)] <- 0  # production can't be negative
 #dat_PV$datetime <- dat_PV$datetime - 105*60  # subtract 105 minutes from Also Energy datetime to match with (correct) Sunny Portal data -- FIXED IN SOURCE DATA
 dat_PV$time <- substr(dat_PV$datetime, 12, 16)  # create hour-minute variable
   dat_PV$time <- as.numeric(gsub(':', '', dat_PV$time))
-dat_PV$elkorProduction_kWh[dat_PV$time %in% c(0:600, 2030:2259) & !is.na(dat_PV$elkorProduction_kWh)] <- 0  # production can't be positive when sun isn't out
+dat_PV$elkorProduction_kWh[dat_PV$time %in% c(0:600, 2030:2259) &
+                             !is.na(dat_PV$elkorProduction_kWh)] <- 0  # production can't be positive when sun isn't out
 dat_PV$hour <- NULL
 dat_PV <- dat_PV[which(!is.na(dat_PV$elkorProduction_kWh))[[1]]:nrow(dat_PV),]  # remove leading NAs (no PV production tracked)
 dat_PV$elkorProduction_kWh[is.na(dat_PV$elkorProduction_kWh)] <- 0  # fill missing data with 0 productions
 
 # PV data has missing timestamps. Fill them in with 0
-dat_PV2 <- data.frame(datetime = seq.POSIXt(min(dat_PV$datetime), max(dat_PV$datetime), by = '15 min'))
+dat_PV2 <- data.frame(datetime = seq.POSIXt(min(dat_PV$datetime),
+                                            max(dat_PV$datetime),
+                                            by = '15 min'))
 dat_PV2$datetime <- as.POSIXct(dat_PV2$datetime,  tz = 'HST')
 dat_PV2 <- left_join(dat_PV2, dat_PV, 'datetime')
 dat_PV <- dat_PV2; rm(dat_PV2); gc()
-dat_PV[is.na(dat_PV$elkorProduction_kWh) & dat_PV$datetime >= as.POSIXct('2019-07-30 17:15:00'), 'elkorProduction_kWh'] <- 0  # fill any remaining NAs with 0 since, if data are entirely missing, we don't even have an estimate at that timestamp
+dat_PV[is.na(dat_PV$elkorProduction_kWh) &
+         dat_PV$datetime >= as.POSIXct('2019-07-30 17:15:00'), 'elkorProduction_kWh'] <- 0  # fill any remaining NAs with 0 since, if data are entirely missing, we don't even have an estimate at that timestamp
 
 
 # convert UH load matrix into vector
@@ -120,10 +124,18 @@ dat_UHdemand_15min <- dat_UHdemand_15min %>%
 dat_UHdemand_15min$hourID <- substr(dat_UHdemand_15min$datetime, 1, 13)  # hour group for summing
 dat_UHdemand_hourly = with(dat_UHdemand_15min,
                            data.frame(datetime  = datetime[!duplicated(hourID)],  # unique hours
-                                      consumption_kWh_pv1MW  = aggregate(consumption_kWh_pv1MW,  list(hourID), sum, na.rm = TRUE)[,2],
-                                      consumption_kWh_pv2MW  = aggregate(consumption_kWh_pv2MW,  list(hourID), sum, na.rm = TRUE)[,2],
-                                      consumption_kWh_pv5MW  = aggregate(consumption_kWh_pv5MW,  list(hourID), sum, na.rm = TRUE)[,2],
-                                      consumption_kWh_pv17MW = aggregate(consumption_kWh_pv17MW, list(hourID), sum, na.rm = TRUE)[,2]))
+                                      consumption_kWh_pv1MW  = aggregate(consumption_kWh_pv1MW, 
+                                                                         list(hourID),
+                                                                         sum, na.rm = TRUE)[,2],
+                                      consumption_kWh_pv2MW  = aggregate(consumption_kWh_pv2MW, 
+                                                                         list(hourID),
+                                                                         sum, na.rm = TRUE)[,2],
+                                      consumption_kWh_pv5MW  = aggregate(consumption_kWh_pv5MW, 
+                                                                         list(hourID),
+                                                                         sum, na.rm = TRUE)[,2],
+                                      consumption_kWh_pv17MW = aggregate(consumption_kWh_pv17MW,
+                                                                         list(hourID),
+                                                                         sum, na.rm = TRUE)[,2]))
 
 # since used na.rm for summing, replace 0 consumption with NA
 dat_UHdemand_hourly$consumption_kWh_pv2MW[dat_UHdemand_hourly$consumption_kWh_pv2MW == 0] <- NA
@@ -132,7 +144,10 @@ dat_UHdemand_hourly$consumption_kWh_pv17MW[dat_UHdemand_hourly$consumption_kWh_p
 
 # merge marginal costs to demand
 colnames(mcHeco) <- c('datetime', 'date', 'mc_dollarsPerMWh', 'mcPrevWkLoadWtd_dollarsPerMWh')
-dat_UHdemand_hourly <- left_join(dat_UHdemand_hourly, mcHeco[c('datetime', 'mc_dollarsPerMWh', 'mcPrevWkLoadWtd_dollarsPerMWh')], 'datetime')
+dat_UHdemand_hourly <-
+  left_join(dat_UHdemand_hourly,
+            mcHeco[c('datetime', 'mc_dollarsPerMWh', 'mcPrevWkLoadWtd_dollarsPerMWh')],
+            'datetime')
 
 # create year, month, day, hour variables
 dat_UHdemand_hourly <- cbind(dat_UHdemand_hourly,
@@ -149,16 +164,20 @@ dat_UHdemand_hourlyAvg <- with(dat_UHdemand_hourly_complete,
                                               consumption_kWh_pv5MW, consumption_kWh_pv17MW),
                                          list(year, hour),
                                          mean, na.rm  = TRUE))
-colnames(dat_UHdemand_hourlyAvg) <- c('year', 'hour', 'consumption_kWh_pv1MW', 'consumption_kWh_pv2MW', 'consumption_kWh_pv5MW', 'consumption_kWh_pv17MW')
+colnames(dat_UHdemand_hourlyAvg) <-
+  c('year', 'hour',
+    'consumption_kWh_pv1MW', 'consumption_kWh_pv2MW', 'consumption_kWh_pv5MW', 'consumption_kWh_pv17MW')
 dat_UHdemand_hourlyAvg <- dat_UHdemand_hourlyAvg[with(dat_UHdemand_hourlyAvg, order(year, hour)),]  # reorder rows accding to date
 
 # plot average hourly consumption by PV scenario
-plotdat <- with(dat_UHdemand_hourlyAvg, data.frame(value = c(aggregate(consumption_kWh_pv1MW,  list(hour), mean, na.rm  = TRUE)[,2],
-                                                             aggregate(consumption_kWh_pv2MW,  list(hour), mean, na.rm  = TRUE)[,2],
-                                                             aggregate(consumption_kWh_pv5MW,  list(hour), mean, na.rm  = TRUE)[,2],
-                                                             aggregate(consumption_kWh_pv17MW, list(hour), mean, na.rm  = TRUE)[,2]),
-                                                   scenario = rep(c('1 MW (current)', '2 MW', '5 MW', '17 MW'), each = 24),
-                                                   hour = 0:23))
+plotdat <- with(dat_UHdemand_hourlyAvg,
+                data.frame(value = c(aggregate(consumption_kWh_pv1MW, 
+                                               list(hour), mean, na.rm  = TRUE)[,2],
+                                     aggregate(consumption_kWh_pv2MW,  list(hour), mean, na.rm  = TRUE)[,2],
+                                     aggregate(consumption_kWh_pv5MW,  list(hour), mean, na.rm  = TRUE)[,2],
+                                     aggregate(consumption_kWh_pv17MW, list(hour), mean, na.rm  = TRUE)[,2]),
+                           scenario = rep(c('1 MW (current)', '2 MW', '5 MW', '17 MW'), each = 24),
+                           hour = 0:23))
 plotdat$scenario <- factor(plotdat$scenario, levels = c('1 MW (current)', '2 MW', '5 MW', '17 MW'))
 
 ggplot(data = plotdat, aes(x = hour, y = value, color = scenario)) +
@@ -204,8 +223,10 @@ plotdat$panel <- factor(plotdat$panel, levels = c('Mean UH load', 'Mean PV produ
 # solar production in this new dataset, as-is, is just the difference b/w load with 1 MW system and load with 5 MW system. I.e., it's the production from
 # 4 additional MW of PV. Multiply these values by 1.25 to get production of total 5 MW system.
 # For 1 MW system, divide the new 5 MW values by 5
-plotdat[plotdat$var == 'PV production, simulated 5 MW system', 'value'] <- plotdat[plotdat$var == 'PV production, simulated 5 MW system', 'value'] * 1.25
-plotdat[plotdat$var == 'PV production, 1 MW system (current)', 'value'] <- plotdat[plotdat$var == 'PV production, simulated 5 MW system', 'value'] / 5
+plotdat[plotdat$var == 'PV production, simulated 5 MW system', 'value'] <-
+  plotdat[plotdat$var == 'PV production, simulated 5 MW system', 'value'] * 1.25
+plotdat[plotdat$var == 'PV production, 1 MW system (current)', 'value'] <-
+  plotdat[plotdat$var == 'PV production, simulated 5 MW system', 'value'] / 5
 
 
 # plot
@@ -214,7 +235,8 @@ ggplot(data = plotdat, aes(x = hour, y = value,
   geom_line(size = 1.3) +
   facet_grid(rows = vars(panel), scales = 'free_y') +
   scale_linetype_manual(values = c('solid', 'dotted', 'solid', 'dotted')) +
-  scale_color_manual(values = c(hue_pal()(2)[[2]], hue_pal()(2)[[2]], hue_pal()(2)[[1]], hue_pal()(2)[[1]])) +
+  scale_color_manual(values = c(hue_pal()(2)[[2]], hue_pal()(2)[[2]],
+                                hue_pal()(2)[[1]], hue_pal()(2)[[1]])) +
   labs(x = 'Hour of day', y = 'kW',
        color = NULL, linetype = NULL) +
   theme(text = element_text(size = 15), legend.position = 'bottom') +
