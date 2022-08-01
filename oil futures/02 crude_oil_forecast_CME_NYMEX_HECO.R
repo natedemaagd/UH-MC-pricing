@@ -58,12 +58,12 @@ dat$EIA_forecast <- na.approx(dat$EIA_forecast)
 
 # extend the futures price and lower bound to 2045, 2% annual inflation
 rownames(dat) <- 1:nrow(dat)
-last_row_with_price <- 172
-for(t in last_row_with_price:nrow(dat)){
+first_row_no_bprice <- 180
+for(t in first_row_no_bprice:nrow(dat)){
   dat$b_price[[t]] <-
-    dat$b_price[[last_row_with_price-1]] * (1.02 ^ (dat$year[[t]] - dat$year[[last_row_with_price]]-1))
+    dat$b_price[[first_row_no_bprice-1]] * (1.02 ^ (dat$year[[t]] - dat$year[[first_row_no_bprice]]-1))
   dat$lb[[t]] <-
-    dat$lb[[last_row_with_price-1]] * (1.02 ^ (dat$year[[t]] - dat$year[[last_row_with_price]]-1))
+    dat$lb[[first_row_no_bprice-1]] * (1.02 ^ (dat$year[[t]] - dat$year[[first_row_no_bprice]]-1))
 }
 rm(t)
 

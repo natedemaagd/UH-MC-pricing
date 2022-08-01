@@ -1,6 +1,6 @@
 
 # title of section in this script corresponds to title in 03_simulate_monthly_bills.R file
-# plots use final dataset created in the indicated section
+# plots use final dataset created in the indicated section - must run 03 and keep all data in environment to run this script
 
 
 
@@ -8,10 +8,10 @@
 ##### find peak loads over previous month and previous 12 months for billing demand/demand charge #####
 
 # get rid of data we won't use as baseline years
-plotdat <- dat_UHdemand_peak15min[!(dat_UHdemand_peak15min$year %in% c(2017, 2018, 2021)),]
+plotdat <- dat_UHdemand_peak15min[!(dat_UHdemand_peak15min$year %in% c(2017, 2018, 2022)),]
 
 # melt data
-plotdat <- with(plotdat, data.frame(date = seq.Date(as.Date('2019-01-01'), as.Date('2020-12-31'), 'month'),
+plotdat <- with(plotdat, data.frame(date = seq.Date(as.Date('2019-01-01'), as.Date('2021-12-31'), 'month'),
                                     value = c(peakLoadPrevMonth_kW, peakLoadPrev12Months_kW, billing_demand_kW),
                                     label = rep(c('Peak load, previous month', 'Peak load, previous year', 'Billing demand'), each = nrow(plotdat))))
 
@@ -31,8 +31,14 @@ rm(plotdat)
 
 ##### format hourly data and calculate hourly average load by year #####
 
+dat_UHdemand_hourlyAvg <- with(dat_UHdemand_hourly,
+                               aggregate(kWh,
+                                         list(year, hour),
+                                         mean))
+colnames(dat_UHdemand_hourlyAvg) <- c('year', 'hour', 'kWh')
+
 # plot
-ggplot(data = dat_UHdemand_hourlyAvg[dat_UHdemand_hourlyAvg$year %in% 2019:2020,]) +
+ggplot(data = dat_UHdemand_hourlyAvg[dat_UHdemand_hourlyAvg$year %in% 2019:2021,]) +
   geom_line(aes(x = hour, y = kWh, color = as.character(year)), size = 1.3) +
   labs(x = 'Hour of day', y = 'Mean consumption (kWh)', color = 'Year') +
   theme(text = element_text(size = 20))
@@ -45,9 +51,9 @@ ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and f
 ##### calculate baseline monthly charges using DS tariff #####
 
 # create data
-plotdat <- data.frame(date = rep(seq.Date(as.Date('2018-01-01'), as.Date('2020-12-31'), 'month'), times = 2),
-                      baselineCharge_dollars = with(dat_baselineMonthlyBill_dollars, c(baseline2019, baseline2020)),
-                      baselineYear = rep(c(2019,2020), each = length(dat_baselineMonthlyBill_dollars$baseline2019)))
+plotdat <- data.frame(date = rep(seq.Date(as.Date('2018-01-01'), as.Date('2021-12-31'), 'month'), times = 3),
+                      baselineCharge_dollars = with(dat_baselineMonthlyBill_dollars, c(baseline2019, baseline2020, baseline2021)),
+                      baselineYear = rep(c(2019, 2020, 2021), each = length(dat_baselineMonthlyBill_dollars$baseline2019)))
 
 # plot
 ggplot(data = plotdat) +
@@ -58,7 +64,7 @@ ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and f
        dpi = 300, height = 6, width = 11)
 
 # plot raw energy prices for comparison
-dat_ecrc <- dat_ecrc <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/Rate_Data/all_schedules/ecrf.xlsx")  # Energy Costs: accounts for energy cost adjustment (prior to 2019) and energy cost recovery (2019 and on)
+dat_ecrc <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/Rate_Data/all_schedules/ecrf.xlsx")  # Energy Costs: accounts for energy cost adjustment (prior to 2019) and energy cost recovery (2019 and on)
 ggplot(data = dat_ecrc[dat_ecrc$year %in% 2018:2020,]) +
   geom_line(aes(x = as.Date(paste(year, month, '1', sep = '-')), y = final_cents_per_kwh), size = 1.3) +
   labs(x = NULL, y = 'ECRC (Cents per kWh)', color = 'Baseline year') +

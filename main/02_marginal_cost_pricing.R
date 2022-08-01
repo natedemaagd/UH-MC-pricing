@@ -1,20 +1,41 @@
 
 Sys.setenv(TZ='HST')
 
-######################################################################
-#### LINE 71 LIMITS DATA - IF WE GET NEW UPDATED DATA REMOVE THIS ####
-######################################################################
+#######################################################################
+#### LINE 158 LIMITS DATA - IF WE GET NEW UPDATED DATA REMOVE THIS ####
+#######################################################################
 
 
 library(ggplot2); library(tidyverse)
 
 # load data
-load("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/00_smartMeterData.R")
+load("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Residential/00_smartMeterData.R")  # for marginal costs
 rm(list = ls()[!(ls() == 'mcHeco')])  # keep only lambda/marginal cost
 dat_DSpricing <- readRDS('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/UH/01_constructed_bills_under_DS_schedule.rds')
 dat_UHdemand <- readxl::read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/UH/UH Demand 2017 - 2021.xlsx")
+dat_UHdemand_fy2022 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/fy22_totalized_substation_power.csv")
 mcHeco <- mcHeco[order(mcHeco$date_time),]
 gc()
+
+### COMBINE ALL DATA UPDATES HERE ###
+
+# add FY 2022 UH load data
+dat_UHdemand_fy2022$meter_id <- NULL
+dat_UHdemand_fy2022$datetime <- as.POSIXlt(dat_UHdemand_fy2022$datetime,
+                                           format = '%m/%d/%Y %H:%M:%S')
+vec_dates_fy22 <- unique(as.Date(dat_UHdemand_fy2022$datetime))
+dat_UHdemand_fy2022_wide <- matrix(dat_UHdemand_fy2022$Power..kW.,
+                                   nrow = length(vec_dates_fy22),
+                                   byrow = TRUE)
+dat_UHdemand_fy2022_wide <- cbind(vec_dates_fy22, dat_UHdemand_fy2022_wide)
+dat_UHdemand_fy2022_wide <- as.data.frame(dat_UHdemand_fy2022_wide)
+colnames(dat_UHdemand_fy2022_wide) <- colnames(dat_UHdemand)
+dat_UHdemand_fy2022_wide[,1] <- vec_dates_fy22
+dat_UHdemand <- rbind(dat_UHdemand, dat_UHdemand_fy2022_wide)
+rm(vec_dates_fy22, dat_UHdemand_fy2022, dat_UHdemand_fy2022_wide)
+
+###
+
 
 # fix UH demand column names and timezone
 time_seq <- as.character(seq(from=as.POSIXct("2012-01-01 00:00", tz="HST"), 
@@ -30,14 +51,18 @@ rm(dat_colnames, time_seq)
 dat_UHdemand[dat_UHdemand$date == as.POSIXct('2019-02-28'), '0000'] <- mean(c(11340.00, 11417.04))
 
 # create week ID for each time period in overall time sequence
-time_seq <- data.frame(time_seq = seq.POSIXt(as.POSIXct(paste0(min(dat_UHdemand$date), ' 00:00:00', tz = 'HST')), as.POSIXct(paste0(max(dat_UHdemand$date), ' 23:45:00', tz = 'HST')), by = '15 min'),
+time_seq <- data.frame(time_seq = seq.POSIXt(as.POSIXct(paste0(min(dat_UHdemand$date),
+                                                               ' 00:00:00', tz = 'HST')),
+                                             as.POSIXct(paste0(max(dat_UHdemand$date),
+                                                               ' 23:45:00', tz = 'HST')),
+                                             by = '15 min'),
                        weekID   = NA)
 for(i in seq(1, nrow(time_seq), 672)){
   time_seq$weekID[[i]] <- (i+671)/672
 }
 time_seq$weekID <- zoo::na.locf(time_seq$weekID)
   
-# for each row (day) of demand, get lambdas - WILL RETURN ERROR FOR 2021-01-01 AND ON - NO MC DATA FROM HECO FOR THIS
+# for each row (day) of demand, get lambdas - WILL RETURN ERROR AND END AT DATES WITH NO MC DATA
 dat_UHbill_daily <- data.frame(date                       = dat_UHdemand$date,
                                weekID                     = rep(NA, times = nrow(dat_UHdemand)),
                                demand_kwh                 = rep(NA, times = nrow(dat_UHdemand)),
@@ -117,7 +142,7 @@ colnames(dat_UHbill_monthly)[[1]] <- 'year_month'
 ggplot(data = dat_UHbill_monthly[-c(1, 44:48),]) +
   geom_line(aes(x = as.Date(paste0(year_month, '-15')), y = (dollars_mc_prevWeekLoadWtd - dollars_mc)/(mean(dollars_mc_prevWeekLoadWtd - dollars_mc)))) +
   labs(x = NULL, y = '(Previous week load-weighted MC charge) - (MC charge)\nas proportion of mean difference') +
-  annotate(geom = 'text', x = as.Date('2020-06-15'), y = -30, label = paste0('Mean diff. = ', round((mean(dat_UHbill_monthly$dollars_mc_prevWeekLoadWtd - dat_UHbill_monthly$dollars_mc)),2))) +
+  annotate(geom = 'text', x = as.Date('2018-01-01'), y = -150, label = paste0('Mean diff. = ', round((mean(dat_UHbill_monthly$dollars_mc_prevWeekLoadWtd - dat_UHbill_monthly$dollars_mc)),2))) +
   theme(text = element_text(size = 16))
 ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_monthly_MC_difference_as_proportion_of_mean_difference.png',
        height = 6, width = 8)
@@ -130,8 +155,8 @@ ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and f
 # merge actual bills to MC data
 dat_UHbill_monthly <- dplyr::left_join(dat_UHbill_monthly, dat_DSpricing[c('year_month', 'totalBill_dollars_constructed')])
 
-# LIMIT DATA TO BEFORE DEC 2020 - CHANGE IF NEW DATA OBTAINED
-dat_UHbill_monthly <- dat_UHbill_monthly[12:41,]
+# # LIMIT DATA TO BEFORE DEC 2020 - CHANGE IF NEW DATA OBTAINED
+# dat_UHbill_monthly <- dat_UHbill_monthly[12:41,]
 
 # calculate dollar amount required to generate same revenue as billing under DS schedule (constructed bill)
 dat_UHbill_monthly$dollars_revenueDeficit <- dat_UHbill_monthly$totalBill_dollars_constructed - dat_UHbill_monthly$dollars_mc
@@ -201,7 +226,9 @@ rm(difference_SD_by_month, monthDates)
 
 # keep only 2020 data
 mcHeco$date <- as.Date(mcHeco$date_time)
-mcHeco2020 <- mcHeco[mcHeco$date >= as.Date('2020-01-01'),]
+mcHeco2020 <- mcHeco[mcHeco$date >= as.Date('2020-01-01') &
+                       mcHeco$date <= as.Date('2020-12-31') &
+                       !is.na(mcHeco$date_time),]
 
 # find mean MC by hour
 mcHeco2020$hour <- lubridate::hour(mcHeco2020$date_time)

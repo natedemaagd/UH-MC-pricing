@@ -5,13 +5,13 @@
 # * Data collected from the following site
 # *	*Futures prices 
 # * 	https://www.cmegroup.com/trading/energy/crude-oil/brent-crude-oil.html
-# * 	*implied volatility
-# *	https://www.barchart.com/futures/quotes/CBV18/options/oct-18
+# * *implied volatility
+# *	  https://www.barchart.com/futures/quotes/CBV18/options/oct-18
 # *	the information of implied volatility available until next 4 years
 # *	If the current year is 2020, the implied volatility information is available until 2024 
 # *************************************************
 
-library(zoo); library(dplyr); library(lubridate)
+library(zoo); library(dplyr); library(lubridate); library(readxl)
 
 # load comparison data (Hyun-gyu's output for this script)
 datHyunGyu <- haven::read_dta("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Oil prices - Hyun-Gyu/futures_price_lower_bound.dta")
@@ -20,16 +20,19 @@ datHyunGyu <- haven::read_dta("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/
 dat201802 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/Brent_crude_oil_futures_price_implied_volatility_on_020518_barchart.csv")
 dat201804 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/Brent_futures_price_IV_040420.csv")
 dat201808 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/Brent_crude_oil_futures_price_implied_volatility_08052018_CME_barchart.csv")
+dat202201 <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/Brent_crude_oil_futures_price_implied_volatility_retrieved_08-01-2022_CME_barchart.xlsx")
 
 # create time variable
 dat201802$time <- as.Date(paste0(dat201802$Contract, '-01'), format = '%y-%b-%d')
 dat201804$time <- as.Date(paste0(dat201804$contract, '-01'), format = '%y-%b-%d')
 dat201808$time <- as.Date(paste0(dat201808$Contract, '-01'), format = '%b-%y-%d')
+dat202201$time <- as.Date(dat202201$contract)
 
 # combine data
-dat <- rbind(as.matrix(dat201802), as.matrix(dat201804), as.matrix(dat201808))
+dat <- rbind(as.matrix(dat201802), as.matrix(dat201804),
+             as.matrix(dat201808), as.matrix(dat202201))
 dat <- as.data.frame(dat)
-rm(dat201802, dat201804, dat201808)
+rm(dat201802, dat201804, dat201808, dat202201)
 
 # rename variables
 colnames(dat) <- c('contract', 'price', 'imp_vol', 'time')
@@ -90,10 +93,10 @@ dat$lb <- with(dat,
 ##### add historical brent crude oil prices #####
 
 # load data
-dat_brent <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/POILBREUSDM_Aug_2019.csv")
+dat_brent <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/POILBREUSDM_Aug_2022.csv")
 
 # format variables
-dat_brent$time <- as.Date(paste0(dat_brent$DATE, '-01'), format = '%b-%y-%d')
+dat_brent$time <- as.Date(dat_brent$DATE)
 dat_brent$price <- dat_brent$POILBREUSDM
 dat_brent$POILBREUSDM <- dat_brent$DATE <- NULL
 

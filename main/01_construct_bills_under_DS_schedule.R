@@ -11,6 +11,26 @@ dat_actual_bills <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/
 # load UH power use data
 dat_15min <- readxl::read_xlsx("UH/UH Demand 2017 - 2021.xlsx")
 
+### COMBINE ALL DATA UPDATES HERE ###
+
+# add FY 2022 UH load data
+dat_UHdemand_fy2022 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/fy22_totalized_substation_power.csv")
+dat_UHdemand_fy2022$meter_id <- NULL
+dat_UHdemand_fy2022$datetime <- as.POSIXlt(dat_UHdemand_fy2022$datetime,
+                                           format = '%m/%d/%Y %H:%M:%S')
+vec_dates_fy22 <- unique(as.Date(dat_UHdemand_fy2022$datetime))
+dat_UHdemand_fy2022_wide <- matrix(dat_UHdemand_fy2022$Power..kW.,
+                                   nrow = length(vec_dates_fy22),
+                                   byrow = TRUE)
+dat_UHdemand_fy2022_wide <- cbind(vec_dates_fy22, dat_UHdemand_fy2022_wide)
+dat_UHdemand_fy2022_wide <- as.data.frame(dat_UHdemand_fy2022_wide)
+colnames(dat_UHdemand_fy2022_wide) <- colnames(dat_15min)
+dat_UHdemand_fy2022_wide[,1] <- vec_dates_fy22
+dat_15min <- rbind(dat_15min, dat_UHdemand_fy2022_wide)
+rm(vec_dates_fy22, dat_UHdemand_fy2022, dat_UHdemand_fy2022_wide)
+
+###
+
 # fix column names
 time_seq <- as.character(seq(from=as.POSIXct("2012-01-01 00:00", tz="HST"), 
                              to=as.POSIXct("2012-01-01 23:45", tz="HST"), by="15 min"))

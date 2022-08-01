@@ -11,11 +11,31 @@ Sys.setenv(TZ='HST')
 ##### load and format historical data #####
 
 # load MC and load data
-load("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/00_smartMeterData.R")
+load("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Residential/00_smartMeterData.R")
 rm(list = ls()[!(ls() == 'mcHeco')])  # keep only lambda/marginal cost
 dat_DSpricing <- readRDS('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/UH/01_constructed_bills_under_DS_schedule.rds')
 dat_UHdemand <- readxl::read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/UH/UH Demand 2017 - 2021.xlsx")
+dat_UHdemand_fy2022 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/fy22_totalized_substation_power.csv")
 mcHeco <- mcHeco[order(mcHeco$date_time),]
+
+### COMBINE ALL DATA UPDATES HERE ###
+
+# add FY 2022 UH load data
+dat_UHdemand_fy2022$meter_id <- NULL
+dat_UHdemand_fy2022$datetime <- as.POSIXlt(dat_UHdemand_fy2022$datetime,
+                                           format = '%m/%d/%Y %H:%M:%S')
+vec_dates_fy22 <- unique(as.Date(dat_UHdemand_fy2022$datetime))
+dat_UHdemand_fy2022_wide <- matrix(dat_UHdemand_fy2022$Power..kW.,
+                                   nrow = length(vec_dates_fy22),
+                                   byrow = TRUE)
+dat_UHdemand_fy2022_wide <- cbind(vec_dates_fy22, dat_UHdemand_fy2022_wide)
+dat_UHdemand_fy2022_wide <- as.data.frame(dat_UHdemand_fy2022_wide)
+colnames(dat_UHdemand_fy2022_wide) <- colnames(dat_UHdemand)
+dat_UHdemand_fy2022_wide[,1] <- vec_dates_fy22
+dat_UHdemand <- rbind(dat_UHdemand, dat_UHdemand_fy2022_wide)
+rm(vec_dates_fy22, dat_UHdemand_fy2022, dat_UHdemand_fy2022_wide)
+
+###
 
 # fix UH demand column names and timezone
 time_seq <- as.character(seq(from=as.POSIXct("2012-01-01 00:00", tz="HST"), 
@@ -121,7 +141,7 @@ colnames(dat_UHdemand_baseline_peakDemand) <- c('year', 'billing_demand_kW')
 ##### create hourly and monthly baseline loads by year #####
 
 # initialize year's worth of datetime data for each baseline year
-dat_UHdemand_baseline_hourly <- data.frame(date = seq.POSIXt(as.POSIXct('2018-01-01 00:00'), as.POSIXct('2020-12-31 23:59'), by = 'hour'))
+dat_UHdemand_baseline_hourly <- data.frame(date = seq.POSIXt(as.POSIXct('2018-01-01 00:00'), as.POSIXct('2021-12-31 23:59'), by = 'hour'))
 dat_UHdemand_baseline_hourly$year  <- year(dat_UHdemand_baseline_hourly$date)
 dat_UHdemand_baseline_hourly$month <- month(dat_UHdemand_baseline_hourly$date)
 dat_UHdemand_baseline_hourly$day   <- day(dat_UHdemand_baseline_hourly$date)
@@ -157,8 +177,8 @@ source("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Code/UH/UH MC pricing/f
 
 # create data.frame with all combinations of monthly bills and baseline years
 all_baselinesMonthsYears <- as.data.frame(expand.grid(list(bill_month = 1:12,
-                                                           bill_year = 2018:2020,
-                                                           baseline_year = 2019:2020)))
+                                                           bill_year = 2018:2021,
+                                                           baseline_year = 2019:2021)))
 
 # use sourced function to calculate monthly DS bills for baseline loads (fixed charge before load deviation adjustment)
 all_baselinesMonthsYears$baselineBill_dollars <- NA
@@ -169,10 +189,11 @@ for(i in 1:nrow(all_baselinesMonthsYears)){
 }
 
 # save only the dollar value for each month
-dat_baselineMonthlyBill_dollars <- data.frame(year = rep(2018:2020, each =  12),
+dat_baselineMonthlyBill_dollars <- data.frame(year = rep(2018:2021, each =  12),
                                               month = 1:12,
                                               baseline2019 = all_baselinesMonthsYears[all_baselinesMonthsYears$baseline_year == 2019, 'baselineBill_dollars'],
-                                              baseline2020 = all_baselinesMonthsYears[all_baselinesMonthsYears$baseline_year == 2020, 'baselineBill_dollars'])
+                                              baseline2020 = all_baselinesMonthsYears[all_baselinesMonthsYears$baseline_year == 2020, 'baselineBill_dollars'],
+                                              baseline2021 = all_baselinesMonthsYears[all_baselinesMonthsYears$baseline_year == 2021, 'baselineBill_dollars'])
 
 rm(ds_bill_calculator, all_baselinesMonthsYears)
 
@@ -192,16 +213,18 @@ dat_UHdemand_hourlyAvg <- data.frame(hour         = 0:23,
                                      kWh_2017mean = dat_UHdemand_hourlyAvg[dat_UHdemand_hourlyAvg$year == 2017, 'kWh'],
                                      kWh_2018mean = dat_UHdemand_hourlyAvg[dat_UHdemand_hourlyAvg$year == 2018, 'kWh'],
                                      kWh_2019mean = dat_UHdemand_hourlyAvg[dat_UHdemand_hourlyAvg$year == 2019, 'kWh'],
-                                     kWh_2020mean = dat_UHdemand_hourlyAvg[dat_UHdemand_hourlyAvg$year == 2020, 'kWh'])
+                                     kWh_2020mean = dat_UHdemand_hourlyAvg[dat_UHdemand_hourlyAvg$year == 2020, 'kWh'],
+                                     kWh_2021mean = dat_UHdemand_hourlyAvg[dat_UHdemand_hourlyAvg$year == 2021, 'kWh'])
 
 # merge hourly mean load to hourly data
 dat_UHdemand_hourly <- left_join(dat_UHdemand_hourly, dat_UHdemand_hourlyAvg, 'hour')
 rm(dat_UHdemand_hourlyAvg)
 
-# run deviation function for baseline years 2018, 2019, 2020 - deviations from baseline charged according to prior-week load-weighted marginal cost (see source script to change to RTP)
+# run deviation function for baseline years - deviations from baseline charged according to prior-week load-weighted marginal cost (see source script to change to RTP)
 dat_UHdemand_hourly <- devFromBaseline(baseline_year = 2018)
 dat_UHdemand_hourly <- devFromBaseline(baseline_year = 2019)
 dat_UHdemand_hourly <- devFromBaseline(baseline_year = 2020)
+dat_UHdemand_hourly <- devFromBaseline(baseline_year = 2021)
 
 rm(devFromBaseline)
 
@@ -211,8 +234,8 @@ rm(devFromBaseline)
 ##### merge data with marginal cost bill data #####
 
 # aggregate simulated hourly data to daily and format
-dat_UHdemand_daily <- aggregate(dat_UHdemand_hourly[,c("kWh_deviationFrom2018",           "kWh_deviationFrom2019",           "kWh_deviationFrom2020",
-                                                       "chargeDollars_deviationFrom2018", "chargeDollars_deviationFrom2019", "chargeDollars_deviationFrom2020")],
+dat_UHdemand_daily <- aggregate(dat_UHdemand_hourly[,c("kWh_deviationFrom2018",           "kWh_deviationFrom2019",           "kWh_deviationFrom2020",           "kWh_deviationFrom2021",
+                                                       "chargeDollars_deviationFrom2018", "chargeDollars_deviationFrom2019", "chargeDollars_deviationFrom2020", "chargeDollars_deviationFrom2021")],
                                    list(dat_UHdemand_hourly$year, dat_UHdemand_hourly$month, dat_UHdemand_hourly$day), sum)
 colnames(dat_UHdemand_daily)[1:3] <- c('year', 'month', 'day')  # rename aggregation groups
 dat_UHdemand_daily <- dat_UHdemand_daily[with(dat_UHdemand_daily, order(year, month, day)), ]  # order data by date
@@ -228,8 +251,8 @@ dat_UHdemand_daily <- dat_UHdemand_daily[complete.cases(dat_UHdemand_daily),]
 ##### adjust DS pricing bills based on charge/credit from load deviations and MC #####
 
 # aggregate charges/credits by year-month
-dat_UHdemand_monthly <- aggregate(dat_UHdemand_daily[c('kWh_deviationFrom2018',           'kWh_deviationFrom2019',           'kWh_deviationFrom2020',
-                                                       'chargeDollars_deviationFrom2018', 'chargeDollars_deviationFrom2019', 'chargeDollars_deviationFrom2020')],
+dat_UHdemand_monthly <- aggregate(dat_UHdemand_daily[c("kWh_deviationFrom2018",           "kWh_deviationFrom2019",           "kWh_deviationFrom2020",           "kWh_deviationFrom2021",
+                                                       "chargeDollars_deviationFrom2018", "chargeDollars_deviationFrom2019", "chargeDollars_deviationFrom2020", "chargeDollars_deviationFrom2021")],
                                   list(dat_UHdemand_daily$year_month), sum)
 colnames(dat_UHdemand_monthly)[colnames(dat_UHdemand_monthly) == 'Group.1'] <- c('year_month')
 dat_UHdemand_monthly <- dat_UHdemand_monthly[substr(dat_UHdemand_monthly$year_month,1,4) != '2017',]  # remove 2017 data since we don't have a baseline (requires 2016 data)
@@ -238,10 +261,12 @@ dat_UHdemand_monthly <- dat_UHdemand_monthly[substr(dat_UHdemand_monthly$year_mo
 dat_UHdemand_monthly$chargeDollars_fixedCharge_baseline2018 <- dat_baselineMonthlyBill_dollars$baseline2018
 dat_UHdemand_monthly$chargeDollars_fixedCharge_baseline2019 <- dat_baselineMonthlyBill_dollars$baseline2019
 dat_UHdemand_monthly$chargeDollars_fixedCharge_baseline2020 <- dat_baselineMonthlyBill_dollars$baseline2020
+dat_UHdemand_monthly$chargeDollars_fixedCharge_baseline2021 <- dat_baselineMonthlyBill_dollars$baseline2021
 
 # adjust baseline charge with monthly MC-based charge/credit
 dat_UHdemand_monthly$totalBill_dollars_GPbaseline2019 <- with(dat_UHdemand_monthly, chargeDollars_fixedCharge_baseline2019 + chargeDollars_deviationFrom2019)
 dat_UHdemand_monthly$totalBill_dollars_GPbaseline2020 <- with(dat_UHdemand_monthly, chargeDollars_fixedCharge_baseline2020 + chargeDollars_deviationFrom2020)
+dat_UHdemand_monthly$totalBill_dollars_GPbaseline2021 <- with(dat_UHdemand_monthly, chargeDollars_fixedCharge_baseline2021 + chargeDollars_deviationFrom2021)
 
 # merge DS pricing bills
 dat_UHdemand_monthly <- left_join(dat_UHdemand_monthly, dat_DSpricing[c('year_month', 'totalBill_dollars_constructed')], 'year_month')
@@ -257,8 +282,8 @@ colnames(dat_UHdemand_monthly)[colnames(dat_UHdemand_monthly) == 'dollars_mc_pre
 
 ##### plot comparison of Georgia Power, true MC pricing, and actual bills #####
 
-# remove months with missing baseline bill
-dat_UHdemand_monthly <- dat_UHdemand_monthly[!is.na(dat_UHdemand_monthly$totalBill_dollars_DSpricing),]
+# # remove months with missing baseline bill
+# dat_UHdemand_monthly <- dat_UHdemand_monthly[!is.na(dat_UHdemand_monthly$totalBill_dollars_DSpricing),]
 
 # add date variable for plotting purposes
 dat_UHdemand_monthly$date <- as.Date(paste0(dat_UHdemand_monthly$year_month, '-01'))
@@ -269,10 +294,12 @@ dat_UHdemand_monthly <- dat_UHdemand_monthly %>%
 # melt DS data and create factor levels
 plotdat_DS <- data.frame(value = with(dat_UHdemand_monthly, c(totalBill_dollars_DSpricing,
                                                               totalBill_dollars_GPbaseline2019,
-                                                              totalBill_dollars_GPbaseline2020)),
-                         baseYear = c(rep(c('Actual bill', '2019', '2020'), each = nrow(dat_UHdemand_monthly))),
-                         date = rep(dat_UHdemand_monthly$date, times = 3))
-plotdat_DS$baseYear <- factor(plotdat_DS$baseYear, levels = c('Actual bill', '2019', '2020'))
+                                                              totalBill_dollars_GPbaseline2020,
+                                                              totalBill_dollars_GPbaseline2021)),
+                         baseYear = c(rep(c('Actual bill', '2019', '2020', '2021'),
+                                          each = nrow(dat_UHdemand_monthly))),
+                         date = rep(dat_UHdemand_monthly$date, times = 4))
+plotdat_DS$baseYear <- factor(plotdat_DS$baseYear, levels = c('Actual bill', '2019', '2020', '2021'))
 
 # melt MC data and create factor levels
 plotdat_MC <- data.frame(value = with(dat_UHdemand_monthly, c(totalBill_dollars_MargCostRTP, totalBill_dollars_MargCostPrevWeekLoadWtd)),
@@ -293,13 +320,13 @@ ggplot() +
   # plot GP tariff bills
   geom_line(data = plotdat_DS[plotdat_DS$baseYear != 'Actual bill',],
             aes(x = date, y = value/1e6, color = baseYear), size = 1.2) +
-  scale_color_manual(values = scales::hue_pal()(5)[1:2], name = 'GP tariff pricing\nby indicated\nbaseline year', guide = guide_legend(order = 2)) +
+  scale_color_manual(values = scales::hue_pal()(6)[1:3], name = 'GP tariff pricing\nby indicated\nbaseline year', guide = guide_legend(order = 2)) +
   
   # plot true MC bills: prior-week load-weighted MC only
   new_scale_color() +
   geom_line(data = plotdat_MC[plotdat_MC$pricingStructure == 'Prior week\nload-weighted',],
             aes(x = date, y = value/1e6, color = fixedCharge), size = 1.2, linetype = 'dotted') +
-  scale_color_manual(values = scales::hue_pal()(5)[3:5], name = 'True MC pricing\nby fixed charge', guide = guide_legend(order = 3)) +
+  scale_color_manual(values = scales::hue_pal()(6)[4:6], name = 'True MC pricing\nby fixed charge', guide = guide_legend(order = 3)) +
   
   # plot actual bills
   new_scale_color() +
@@ -344,12 +371,22 @@ ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and f
 
 ##### for comparison of loads between years, plot monthly kWh usage #####
 
+# add total kWh usage to monthly data
+dat_monthlykWh <- aggregate(dat_UHdemand_daily$demand_kwh,
+                            list(dat_UHdemand_daily$year_month),
+                            sum)
+colnames(dat_monthlykWh) <- c('year_month', 'demand_kWh')
+dat_UHdemand_monthly <- left_join(dat_UHdemand_monthly,
+                                  dat_monthlykWh,
+                                  'year_month')
+rm(dat_monthlykWh)
+
 # melt data
-plotdat_kWh <- dat_DSpricing[c('date', 'billing_demand_kWh')]
+plotdat_kWh <- dat_UHdemand_monthly[c('date', 'demand_kWh')]
 plotdat_kWh$month <- month(plotdat_kWh$date)
 plotdat_kWh$year  <- year(plotdat_kWh$date)
-plotdat_kWh <- reshape2::melt(plotdat_kWh[c('month', 'year', 'billing_demand_kWh')], id.vars = c('month', 'year'))
-plotdat_kWh <- plotdat_kWh[!(plotdat_kWh$year %in% c(2017, 2021)),]
+plotdat_kWh <- reshape2::melt(plotdat_kWh[c('month', 'year', 'demand_kWh')], id.vars = c('month', 'year'))
+plotdat_kWh <- plotdat_kWh[!(plotdat_kWh$year %in% c(2017, 2022)),]
 
 # plot
 ggplot(data = plotdat_kWh) +
