@@ -13,26 +13,29 @@
 
 library(zoo); library(dplyr); library(lubridate); library(readxl)
 
-# load comparison data (Hyun-gyu's output for this script)
-datHyunGyu <- haven::read_dta("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Oil prices - Hyun-Gyu/futures_price_lower_bound.dta")
+# # load comparison data (Hyun-gyu's output for this script)
+# datHyunGyu <- haven::read_dta("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Oil prices - Hyun-Gyu/futures_price_lower_bound.dta")
 
 # load data
-dat201802 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/Brent_crude_oil_futures_price_implied_volatility_on_020518_barchart.csv")
-dat201804 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/Brent_futures_price_IV_040420.csv")
-dat201808 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/Brent_crude_oil_futures_price_implied_volatility_08052018_CME_barchart.csv")
-dat202201 <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/Brent_crude_oil_futures_price_implied_volatility_retrieved_08-01-2022_CME_barchart.xlsx")
+dat201802 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures/Brent_crude_oil_futures_price_implied_volatility_on_020518_barchart.csv")
+dat201804 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures/Brent_futures_price_IV_040420.csv")
+dat201808 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures/Brent_crude_oil_futures_price_implied_volatility_08052018_CME_barchart.csv")
+dat202201 <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures/Brent_crude_oil_futures_price_implied_volatility_retrieved_08-01-2022_CME_barchart.xlsx")
+dat202208 <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures/Brent_crude_oil_futures_price_implied_volatility_retrieved_08-17-2022_CME_barchart.xlsx")
 
 # create time variable
 dat201802$time <- as.Date(paste0(dat201802$Contract, '-01'), format = '%y-%b-%d')
 dat201804$time <- as.Date(paste0(dat201804$contract, '-01'), format = '%y-%b-%d')
 dat201808$time <- as.Date(paste0(dat201808$Contract, '-01'), format = '%b-%y-%d')
 dat202201$time <- as.Date(dat202201$contract)
+dat202208$time <- as.Date(dat202208$contract)
 
 # combine data
 dat <- rbind(as.matrix(dat201802), as.matrix(dat201804),
-             as.matrix(dat201808), as.matrix(dat202201))
+             as.matrix(dat201808), as.matrix(dat202201),
+             as.matrix(dat202208))
 dat <- as.data.frame(dat)
-rm(dat201802, dat201804, dat201808, dat202201)
+rm(dat201802, dat201804, dat201808, dat202201, dat202208)
 
 # rename variables
 colnames(dat) <- c('contract', 'price', 'imp_vol', 'time')
@@ -56,13 +59,18 @@ dat$lb <- with(dat,
                b_price-(b_price*(imp_vol/100))
                )
 
+# generate upper bound - run if not using EIA estimates as upper bound
+dat$ub <- with(dat,
+               b_price+(b_price*(imp_vol/100))
+)
+
 
 
 
 # ##### add futures price in Aug 2019 for comparison #####
 # 
 # # load data
-# dat2019 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/Brent_crude_oil_futures_price_implied_volatility_082319_CME_barchart.csv")
+# dat2019 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures/Brent_crude_oil_futures_price_implied_volatility_082319_CME_barchart.csv")
 # 
 # # rename variables
 # colnames(dat2019)[colnames(dat2019) == 'last'] <- 'price_prev'
@@ -93,7 +101,7 @@ dat$lb <- with(dat,
 ##### add historical brent crude oil prices #####
 
 # load data
-dat_brent <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/POILBREUSDM_Aug_2022.csv")
+dat_brent <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures/POILBREUSDM_Aug_2022.csv")
 
 # format variables
 dat_brent$time <- as.Date(dat_brent$DATE)
@@ -116,7 +124,7 @@ dat$year <- year(dat$date)
 ##### final formatting #####
 
 # reorder columns to match Hyun-gyu's
-dat <- dat[c('contract', 'b_price', 'imp_vol', 'time', 'lb', 'price', 'date', 'month', 'year')]
+dat <- dat[c('contract', 'b_price', 'imp_vol', 'time', 'lb', 'ub', 'price', 'date', 'month', 'year')]
 dat <- dat[order(dat$date),]
 
 # save

@@ -40,7 +40,7 @@ GP_bill_calculator <- function(){
   dat_consumptionHourly <- dat_consumptionHourly[!(dat_consumptionHourly$month == 2 & dat_consumptionHourly$day == 29),]
   
   # merge baseline loads to hourly consumption data.frame
-  for(i in 2018:2020){
+  for(i in 2018:2021){
     dat_consumptionHourly <- left_join(dat_consumptionHourly,
                                        dat_baselineHourlyConsumption[dat_baselineHourlyConsumption$year == i,
                                                                      c('month', 'day', 'hour', 'kWh')],
@@ -50,7 +50,7 @@ GP_bill_calculator <- function(){
   
   # calculate kWh deviations for all PV scenarios and baseline years
   for (s in 1:length(scenarios)){
-    for(y in 2018:2020){
+    for(y in 2018:2021){
       dat_consumptionHourly[,paste0('kWh_deviation_', scenarios[[s]], '_baseline', y)] <-
         dat_consumptionHourly[,paste0('consumption_kWh_', scenarios[[s]])] - 
         dat_consumptionHourly[,paste0('kWh_baseline', y)]
@@ -68,7 +68,7 @@ GP_bill_calculator <- function(){
   
   # for each PV scenario and baseline year, charge deviations according to MC
   for(s in 1:length(scenarios)){
-    for(y in 2018:2020){
+    for(y in 2018:2021){
       dat_consumptionHourly[,paste0('deviationChargeDollars_', scenarios[[s]], '_baseline', y)] <-
         dat_consumptionHourly[,paste0('kWh_deviation_', scenarios[[s]], '_baseline', y)] *
         dat_consumptionHourly$mcPrevWkLoadWtd_dollarsPerMWh/1000
@@ -88,7 +88,7 @@ GP_bill_calculator <- function(){
   dat_GPbill <- left_join(dat_baselineMonthlyBill_dollars, dat_deviationChargesMonthly,
                           by = c('year', 'month'))
   dat_GPbill[dat_GPbill == 0] <- NA
-  for(y in 2019:2020){
+  for(y in 2019:2021){
     for(s in 1:length(scenarios)){
       dat_GPbill[,paste0('totalBillDollars_GPpricingBaseline', y, '_', scenarios[[s]])] <- 
         dat_GPbill[paste0('baseline', y)] +

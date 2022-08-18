@@ -9,7 +9,7 @@ setwd('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/')
 dat_actual_bills <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/monthly_UH_bill_2018_2019.xlsx")
 
 # load UH power use data
-dat_15min <- readxl::read_xlsx("UH/UH Demand 2017 - 2021.xlsx")
+dat_15min <- readxl::read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/UH Demand 2017 - 2021.xlsx")
 
 ### COMBINE ALL DATA UPDATES HERE ###
 

@@ -14,7 +14,7 @@ Sys.setenv(TZ='HST')
 load("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Residential/00_smartMeterData.R")
 rm(list = ls()[!(ls() == 'mcHeco')])  # keep only lambda/marginal cost
 dat_DSpricing <- readRDS('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/UH/01_constructed_bills_under_DS_schedule.rds')
-dat_UHdemand <- readxl::read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/UH/UH Demand 2017 - 2021.xlsx")
+dat_UHdemand <- readxl::read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/UH Demand 2017 - 2021.xlsx")
 dat_UHdemand_fy2022 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/fy22_totalized_substation_power.csv")
 mcHeco <- mcHeco[order(mcHeco$date_time),]
 

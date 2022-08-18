@@ -10,8 +10,8 @@ library(haven)
 
 ##### load and format data #####
 
-# load Hyun-Gyu's final data for comparison
-dat_HyunGyu <- read_dta("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Oil prices - Hyun-Gyu/crude_oil_forecast.dta")
+# # load Hyun-Gyu's final data for comparison
+# dat_HyunGyu <- read_dta("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Oil prices - Hyun-Gyu/crude_oil_forecast.dta")
 
 # load futures data
 datRaw <- read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/Brent_crude_oil_futures_price_implied_volatility_08052018_CME_barchart.csv.xlsx")
@@ -61,7 +61,7 @@ dat <- left_join(dat, datRaw, 'date')
 dat <- left_join(dat, datEIA, 'year')
 rm(datRaw, datEIA)
 
-# merge lower bound data with main data  ### WHERE DOES THIS COME FROM ???
+# merge lower bound data with main data
 dat <- left_join(dat, datLowerBound, 'date')
 rm(datLowerBound)
 

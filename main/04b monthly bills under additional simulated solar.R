@@ -109,9 +109,10 @@ ggsave("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figu
 plotdat <- dat_consumptionMonthly[!is.na(dat_consumptionMonthly$totalBillDollars_DSpricing_pv1MW),]  # keep only range with original DS bills
 plotdat <- with(plotdat, data.frame(value = c(totalBillDollars_DSpricing_pv1MW, totalBillDollars_DSpricing_pv2MW, totalBillDollars_DSpricing_pv5MW,  totalBillDollars_DSpricing_pv17MW,
                                               totalBillDollars_GPpricingBaseline2019_pv1MW, totalBillDollars_GPpricingBaseline2019_pv2MW, totalBillDollars_GPpricingBaseline2019_pv5MW, totalBillDollars_GPpricingBaseline2019_pv17MW,
-                                              totalBillDollars_GPpricingBaseline2020_pv1MW, totalBillDollars_GPpricingBaseline2020_pv2MW, totalBillDollars_GPpricingBaseline2020_pv5MW, totalBillDollars_GPpricingBaseline2020_pv17MW)/1e6,
+                                              totalBillDollars_GPpricingBaseline2020_pv1MW, totalBillDollars_GPpricingBaseline2020_pv2MW, totalBillDollars_GPpricingBaseline2020_pv5MW, totalBillDollars_GPpricingBaseline2020_pv17MW,
+                                              totalBillDollars_GPpricingBaseline2021_pv1MW, totalBillDollars_GPpricingBaseline2021_pv2MW, totalBillDollars_GPpricingBaseline2021_pv5MW, totalBillDollars_GPpricingBaseline2021_pv17MW)/1e6,
                                     scenario = rep(c('1 MW', '2 MW', '5 MW', '17 MW'), each = nrow(plotdat)),
-                                    pricingStructure = rep(c('DS', 'GP baseline 2019', 'GP baseline 2020'), each = nrow(plotdat)*length(scenarios)),
+                                    pricingStructure = rep(c('DS', 'GP baseline 2019', 'GP baseline 2020', 'GP baseline 2021'), each = nrow(plotdat)*length(scenarios)),
                                     date = plotdat$date))
 plotdat$scenario <- factor(plotdat$scenario, levels = c('1 MW', '2 MW', '5 MW', '17 MW'))
 

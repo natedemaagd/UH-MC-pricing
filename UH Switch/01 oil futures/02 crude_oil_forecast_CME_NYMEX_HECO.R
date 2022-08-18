@@ -8,11 +8,14 @@
 
 library(tidyverse); library(lubridate); library(zoo)
 
+# load Hyun-gyu's data for comparison
+datHyunGyu <- haven::read_dta("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Oil prices - Hyun-Gyu/crude_oil_forecast.dta")
+
 # load historical oil prices and computed lower bound
 dat <- readRDS("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Oil prices - Hyun-Gyu/futures_price_lower_bound.rds")
 
 # # add brent crude oil price - ALREADY DONE IN 01
-# datBrent <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/POILBREUSDM_Aug_2019.csv")
+# datBrent <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2019-07-01/POILBREUSDM_Aug_2019.csv")
 # datBrent$DATE2 <- paste0('01-', datBrent$DATE)
 # datBrent$DATE2 <- as.Date(datBrent$DATE2, format = '%d-%b-%y')
 # datBrent <- data.frame(date = datBrent$DATE2,
@@ -35,6 +38,7 @@ dat2 <- data.frame(date = c(seq.Date(as.Date('2015-01-01'),
                    b_price = NA,
                    imp_vol = NA,
                    lb = NA,
+                   ub = NA,  # remove if using EIA as upper bound
                    price = NA)
 dat2$year <- year(dat2$date)
 dat2$month <- month(dat2$date)
@@ -58,19 +62,24 @@ dat$EIA_forecast <- na.approx(dat$EIA_forecast)
 
 # extend the futures price and lower bound to 2045, 2% annual inflation
 rownames(dat) <- 1:nrow(dat)
-first_row_no_bprice <- 180
+first_date_no_bprice <-
+  min(dat$date[is.na(dat$b_price &
+                           dat$date > as.Date('2020-01-01'))])  # find date with first missing price after 2020-01-01
+first_row_no_bprice <- which(dat$date == first_date_no_bprice)  # get row number of this date
 for(t in first_row_no_bprice:nrow(dat)){
   dat$b_price[[t]] <-
     dat$b_price[[first_row_no_bprice-1]] * (1.02 ^ (dat$year[[t]] - dat$year[[first_row_no_bprice]]-1))
   dat$lb[[t]] <-
     dat$lb[[first_row_no_bprice-1]] * (1.02 ^ (dat$year[[t]] - dat$year[[first_row_no_bprice]]-1))
+  dat$ub[[t]] <-
+    dat$ub[[first_row_no_bprice-1]] * (1.02 ^ (dat$year[[t]] - dat$year[[first_row_no_bprice]]-1))  # UPPER BOUND PROJECTION - COMMENT OUT IF USING EIA AS UPPER BOUND
 }
-rm(t)
+rm(t, first_date_no_bprice, first_row_no_bprice)
 
 # obtain crude oil prices for analysis
 dat2 <- dat
 colnames(dat2)[colnames(dat2) == 'b_price'] <- 'futures'
-dat2 <- dat2[c('time', 'date', 'year', 'month', 'EIA_forecast', 'futures', 'lb', 'price')]
+dat2 <- dat2[c('time', 'date', 'year', 'month', 'EIA_forecast', 'futures', 'lb', 'ub', 'price')]
 saveRDS(dat2,
         file = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Oil prices - Hyun-Gyu/02 oil_price_2020_2045.rds')
 rm(dat2)
@@ -81,7 +90,7 @@ rm(dat2)
 ##### convert oil price from nominal to 2019 dollars #####
 
 # add inflation from the excel that Matthias shared (May 11, 2020)
-dat_inflation <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures retrieved 2022-07-01/inflation_from_Matthias.csv")
+dat_inflation <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/Oil futures/inflation_from_Matthias.csv")
 colnames(dat_inflation) <- c('year', 'inflation')
 
 # merge data
@@ -92,10 +101,11 @@ rm(dat_inflation)
 dat$EIA_forecast_2019 <- with(dat, EIA_forecast / (inflation ^ (year - 2019)))
 dat$b_price_2019 <- with(dat, b_price / (inflation ^ (year - 2019)))
 dat$lb_2019 <- with(dat, lb / (inflation ^ (year - 2019)))
+dat$ub_2019 <- with(dat, ub / (inflation ^ (year - 2019)))
 
 # format data for saving
 dat2 <- dat[dat$year %in% 2020:2045,]
-colnames(dat2)[colnames(dat2) == 'EIA_forecast_2019'] <- 'high'
+colnames(dat2)[colnames(dat2) == 'ub_2019'] <- 'high'
 colnames(dat2)[colnames(dat2) == 'b_price_2019'] <- 'mid'
 colnames(dat2)[colnames(dat2) == 'lb_2019'] <- 'low'
 dat2 <- dat2[c('date', 'year', 'month', 'high', 'mid', 'low')]

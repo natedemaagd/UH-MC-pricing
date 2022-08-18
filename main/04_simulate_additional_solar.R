@@ -14,7 +14,7 @@ Sys.setenv(TZ='HST')
 load("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Residential/00_smartMeterData.R")
 rm(list = ls()[!(ls() == 'mcHeco')])  # keep only lambda/marginal cost
 dat_DSpricing <- readRDS('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/UH/01_constructed_bills_under_DS_schedule.rds')
-dat_UHdemand <- readxl::read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/UH/UH Demand 2017 - 2021.xlsx")
+dat_UHdemand <- readxl::read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/UH Demand 2017 - 2021.xlsx")
 dat_UHdemand_fy2022 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/fy22_totalized_substation_power.csv")
 mcHeco <- mcHeco[order(mcHeco$date_time),]
 
@@ -183,7 +183,8 @@ plotdat$scenario <- factor(plotdat$scenario, levels = c('1 MW (current)', '2 MW'
 ggplot(data = plotdat, aes(x = hour, y = value, color = scenario)) +
   geom_line(size = 1.3, alpha = 0.7) +
   labs(x = 'Hour of day', y = 'Hourly consumption (kWh)', color = 'PV system') +
-  theme(text = element_text(size = 14))
+  theme(text = element_text(size = 14)) +
+  scale_color_viridis_d()
 ggsave(filename = "D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/04_UH average hourly consumption by PV scenario.png",
        dpi = 300, height = 4,  width = 8)
 

@@ -12,7 +12,7 @@ library(ggplot2); library(tidyverse)
 load("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/Residential/00_smartMeterData.R")  # for marginal costs
 rm(list = ls()[!(ls() == 'mcHeco')])  # keep only lambda/marginal cost
 dat_DSpricing <- readRDS('D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Output/UH/01_constructed_bills_under_DS_schedule.rds')
-dat_UHdemand <- readxl::read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/HECO/UH/UH Demand 2017 - 2021.xlsx")
+dat_UHdemand <- readxl::read_xlsx("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/UH Demand 2017 - 2021.xlsx")
 dat_UHdemand_fy2022 <- read.csv("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Data/Raw/UH/fy22_totalized_substation_power.csv")
 mcHeco <- mcHeco[order(mcHeco$date_time),]
 gc()
@@ -148,17 +148,21 @@ dat_UHbill_monthly <- aggregate(dat_UHbill_daily[c('demand_kwh', 'dollars_mc', '
                                 list(dat_UHbill_daily$year_month), sum, na.rm = TRUE)
 colnames(dat_UHbill_monthly)[[1]] <- 'year_month'
 
-# plot monthly difference between marginal cost and previous-week-load-weighted marginal cost as 
-ggplot(data = dat_UHbill_monthly[-c(1, 44:48),]) +
-  geom_line(aes(x = as.Date(paste0(year_month, '-15')),
+# plot monthly difference between marginal cost and previous-week-load-weighted marginal cost as
+plotdat <- dat_UHbill_monthly
+plotdat$date <- as.Date(paste0(plotdat$year_month, '-15'))
+plotdat <- plotdat[plotdat$date <= max(as.Date(mcHeco$date_time), na.rm = TRUE),]
+ggplot(data = plotdat[-1,]) +
+  geom_line(aes(x = date,
                 y = (dollars_mc_prevWeekLoadWtd - dollars_mc)/(mean(dollars_mc_prevWeekLoadWtd - dollars_mc)))) +
   labs(x = NULL, y = '(Previous week load-weighted MC charge) - (MC charge)\nas proportion of mean difference') +
-  annotate(geom = 'text', x = as.Date('2018-01-01'), y = -150,
-           label = paste0('Mean diff. = ', round((mean(dat_UHbill_monthly$dollars_mc_prevWeekLoadWtd -
-                                                         dat_UHbill_monthly$dollars_mc)),2))) +
+  annotate(geom = 'text', x = as.Date('2018-01-01'), y = -25,
+           label = paste0('Mean diff. = ', round((mean(plotdat$dollars_mc_prevWeekLoadWtd -
+                                                         plotdat$dollars_mc)),2))) +
   theme(text = element_text(size = 16))
 ggsave(filename = 'D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/02_monthly_MC_difference_as_proportion_of_mean_difference.png',
-       height = 6, width = 8)
+       height = 6, width = 9)
+rm(plotdat)
 
 
 
@@ -178,10 +182,14 @@ dat_UHbill_monthly$dollars_revenueDeficit <-
   dat_UHbill_monthly$totalBill_dollars_constructed - dat_UHbill_monthly$dollars_mc
 
 # plot time series of revenue deficit ()
-ggplot(data = dat_UHbill_monthly) +
+plotdat <- dat_UHbill_monthly
+plotdat$date <- as.Date(paste0(plotdat$year_month, '-15'))
+plotdat <- plotdat[plotdat$date <= max(as.Date(mcHeco$date_time), na.rm = TRUE),]
+ggplot(data = plotdat) +
   geom_line(aes(x = as.Date(paste0(year_month, '-15')),
                 y = dollars_revenueDeficit/1e6)) +
   labs(x = NULL, y = 'Monthly revenue deficit (Million $)')
+rm(plotdat)
 
 
 
