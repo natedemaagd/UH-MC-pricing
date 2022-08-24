@@ -397,11 +397,11 @@ ggplot(data = plotdat_MC[plotdat_MC$fixedCharge == '$750k',]) +
   labs(x = NULL, y = 'Monthly bill (million $)', color = 'Marginal cost\npricing structure') +
   scale_color_discrete(guide = guide_legend(order = 2)) +
   
-  # # plot actual bills
-  # new_scale_color() +
-  # geom_line(data = plotdat_DS[plotdat_DS$baseYear == 'Actual bill',],
-  #           aes(x = date, y = value/1e6, color = 'Actual bill'), size = 2) +
-  # scale_color_manual(values = 'black', name = NULL, guide = guide_legend(order = 1)) +
+  # plot actual bills
+  new_scale_color() +
+  geom_line(data = plotdat_DS[plotdat_DS$baseYear == 'Actual bill',],
+            aes(x = date, y = value/1e6, color = 'Actual bill'), size = 2) +
+  scale_color_manual(values = 'black', name = NULL, guide = guide_legend(order = 1)) +
   
   # general plot settings
   scale_y_continuous(limits = c(1, 2.5),

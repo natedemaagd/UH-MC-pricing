@@ -52,7 +52,7 @@ gc()
 
 # add total MC bill to data using chosen fixed charge
 source("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Code/UH/UH MC pricing/functions/04b-f03 MC bill for all PV scenarios.R")
-dat_consumptionMonthly <- MC_bill_calculator(fixedCharge_dollars = 965000)
+dat_consumptionMonthly <- MC_bill_calculator(fixedCharge_dollars = 750000)
 rm(MC_bill_calculator)
 
 
@@ -94,11 +94,10 @@ ggplot() +
   scale_linetype_manual(values = c('solid', 'longdash', 'dashed', 'dotted')) +
   geom_line(data = plotdat[plotdat$scenario == '1 MW' & plotdat$pricingStructure == 'DS',],
             aes(x = date, y = value), color = scales::hue_pal()(3)[[1]], alpha = 0.7, size = 2) +
-  scale_x_date(limits = c(min(plotdat$date), '2021-01-01')) +
   theme(text = element_text(size = 15), legend.key.size=unit(2,"lines"))
 
 ggsave("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/04b-fig01 DS and prior-week MC bills under various PV scenarios.png",
-       dpi = 300, height = 6, width = 11)
+       dpi = 300, height = 6, width = 12)
 
 
 
@@ -108,11 +107,12 @@ ggsave("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figu
 # melt data
 plotdat <- dat_consumptionMonthly[!is.na(dat_consumptionMonthly$totalBillDollars_DSpricing_pv1MW),]  # keep only range with original DS bills
 plotdat <- with(plotdat, data.frame(value = c(totalBillDollars_DSpricing_pv1MW, totalBillDollars_DSpricing_pv2MW, totalBillDollars_DSpricing_pv5MW,  totalBillDollars_DSpricing_pv17MW,
-                                              totalBillDollars_GPpricingBaseline2019_pv1MW, totalBillDollars_GPpricingBaseline2019_pv2MW, totalBillDollars_GPpricingBaseline2019_pv5MW, totalBillDollars_GPpricingBaseline2019_pv17MW,
-                                              totalBillDollars_GPpricingBaseline2020_pv1MW, totalBillDollars_GPpricingBaseline2020_pv2MW, totalBillDollars_GPpricingBaseline2020_pv5MW, totalBillDollars_GPpricingBaseline2020_pv17MW,
+                                              #totalBillDollars_GPpricingBaseline2019_pv1MW, totalBillDollars_GPpricingBaseline2019_pv2MW, totalBillDollars_GPpricingBaseline2019_pv5MW, totalBillDollars_GPpricingBaseline2019_pv17MW,
+                                              #totalBillDollars_GPpricingBaseline2020_pv1MW, totalBillDollars_GPpricingBaseline2020_pv2MW, totalBillDollars_GPpricingBaseline2020_pv5MW, totalBillDollars_GPpricingBaseline2020_pv17MW,
                                               totalBillDollars_GPpricingBaseline2021_pv1MW, totalBillDollars_GPpricingBaseline2021_pv2MW, totalBillDollars_GPpricingBaseline2021_pv5MW, totalBillDollars_GPpricingBaseline2021_pv17MW)/1e6,
                                     scenario = rep(c('1 MW', '2 MW', '5 MW', '17 MW'), each = nrow(plotdat)),
-                                    pricingStructure = rep(c('DS', 'GP baseline 2019', 'GP baseline 2020', 'GP baseline 2021'), each = nrow(plotdat)*length(scenarios)),
+                                    #pricingStructure = rep(c('DS', 'GP baseline 2019', 'GP baseline 2020', 'GP baseline 2021'), each = nrow(plotdat)*length(scenarios)),
+                                    pricingStructure = rep(c('DS', 'GP baseline 2021'), each = nrow(plotdat)*length(scenarios)),
                                     date = plotdat$date))
 plotdat$scenario <- factor(plotdat$scenario, levels = c('1 MW', '2 MW', '5 MW', '17 MW'))
 
@@ -130,4 +130,4 @@ ggplot() +
   theme(text = element_text(size = 15), legend.key.size=unit(2,"lines"))
 
 ggsave("D:/OneDrive - hawaii.edu/Documents/Projects/HECO/Tables and figures/Figures/04b-fig02 DS and GP bills under various PV scenarios.png",
-       dpi = 300, height = 6, width = 10)
+       dpi = 300, height = 6, width = 12)
